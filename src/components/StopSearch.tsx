@@ -1,9 +1,9 @@
 'use client';
 
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Train, Bus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchStops, SearchResult } from '@/app/actions';
+import { searchStops, SearchResult } from '@/lib/stopSearch';
 
 export function StopSearch() {
     const router = useRouter();
@@ -83,19 +83,23 @@ export function StopSearch() {
                                 onClick={() => handleSelect(stop)}
                                 className="w-full text-left px-4 py-3 border-b border-slate-100 last:border-0 
                                        hover:bg-slate-50 active:bg-slate-100 transition-colors 
-                                       flex items-center justify-between gap-3"
+                                       flex items-center gap-3"
                             >
+                                <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0
+                                           bg-orange-100" 
+                                     style={{backgroundColor: stop.agency === 'metro' ? '#fed7aa' : '#fee2e2'}}>
+                                    {stop.agency === 'metro' ? (
+                                        <Train className="w-4 h-4 text-orange-600" />
+                                    ) : (
+                                        <Bus className="w-4 h-4 text-red-600" />
+                                    )}
+                                </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="font-semibold text-slate-900 text-base">{stop.name}</div>
                                     <div className="text-xs text-slate-400 uppercase tracking-wide mt-0.5 font-medium">
                                         {stop.agency === 'metro' ? 'Metro Bilbao' : 'Bilbobus'}
                                     </div>
                                 </div>
-                                <div
-                                    className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                                        stop.agency === 'metro' ? 'bg-orange-500' : 'bg-red-600'
-                                    }`}
-                                />
                             </button>
                         ))}
                     </div>

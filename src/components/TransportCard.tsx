@@ -43,6 +43,21 @@ export function TransportCard({
     const isImminent = etaMinutes <= 2;
     const isArrived = etaMinutes <= 0;
 
+    // Extract clean line name (L1, L2, L3)
+    const getLineDisplay = (line: string): string => {
+        const regex = /L[1-3]/;
+        const match = regex.exec(line);
+        return match ? match[0] : line.slice(0, 2);
+    };
+
+    // Line color based on L1/L2/L3
+    const getLineColor = (line: string): string => {
+        if (line.includes('L1')) return 'bg-orange-500';
+        if (line.includes('L2')) return 'bg-green-600';
+        if (line.includes('L3')) return 'bg-blue-600';
+        return theme.bg;
+    };
+
     return (
         <div className="flex items-center justify-between p-3 rounded-lg bg-white 
                       border border-slate-100 hover:border-slate-200 hover:shadow-sm 
@@ -50,9 +65,9 @@ export function TransportCard({
             {/* Left: Line + Destination */}
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 {/* Line Badge */}
-                <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${theme.bg} ${theme.text} 
-                              font-bold text-sm shadow-sm flex-shrink-0`}>
-                    {lineId ? lineId.slice(0, 2) : '??'}
+                <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${getLineColor(lineId)} text-white
+                              font-bold text-sm shadow-sm shrink-0`}>
+                    {getLineDisplay(lineId)}
                 </div>
 
                 {/* Details */}
@@ -78,7 +93,7 @@ export function TransportCard({
             </div>
 
             {/* Right: ETA */}
-            <div className="flex flex-col items-end gap-0.5 flex-shrink-0 ml-3">
+            <div className="flex flex-col items-end gap-0.5 shrink-0 ml-3">
                 {isArrived ? (
                     <div className="px-2 py-1 rounded bg-green-100">
                         <span className="text-xs font-bold text-green-700">Aquí</span>

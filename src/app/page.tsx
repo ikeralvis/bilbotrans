@@ -6,11 +6,14 @@ import { FavoriteStopCard } from '@/components/FavoriteStopCard';
 import { NearbyStops } from '@/components/NearbyStops';
 import { StopsMap } from '@/components/StopsMap';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { MetroIncidents } from '@/components/MetroIncidents';
+import { BottomNav, TransportType } from '@/components/BottomNav';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { getNearbyStops, getAllStops, searchStops } from '@/app/actions';
-import { MapPin, Heart, Navigation, Map, Loader2, Search, ArrowUpDown, Train, X } from 'lucide-react';
+import { getNearbyStops, getAllStops } from '@/app/actions';
+import { searchStops } from '@/lib/stopSearch';
+import { Heart, Navigation, Map, Loader2, Search, ArrowUpDown, Train, X, Bus, Construction } from 'lucide-react';
 
 interface StopLocation {
     id: string;
@@ -30,6 +33,7 @@ export default function Home() {
     const [isLoadingNearby, setIsLoadingNearby] = useState(false);
     const [isLoadingMap, setIsLoadingMap] = useState(false);
     const [activeTab, setActiveTab] = useState<'favorites' | 'nearby' | 'map'>('favorites');
+    const [activeTransport, setActiveTransport] = useState<TransportType>('metro');
     
     // Search inputs state
     const [origin, setOrigin] = useState('');
@@ -161,299 +165,293 @@ export default function Home() {
                     setShowDestDropdown(false);
                 }
             }}
-            className="w-full text-left px-3 py-2.5 hover:bg-orange-50 transition-colors flex items-center gap-3"
+            className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3 active:bg-slate-100"
         >
-            {stop.agency === 'metro' ? (
-                <div className="w-6 h-6 rounded-md bg-orange-100 flex items-center justify-center shrink-0">
-                    <Train className="w-3.5 h-3.5 text-orange-600" />
-                </div>
-            ) : (
-                <div className="w-6 h-6 rounded-md bg-red-100 flex items-center justify-center shrink-0">
-                    <MapPin className="w-3.5 h-3.5 text-red-600" />
-                </div>
-            )}
-            <div className="min-w-0">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                stop.agency === 'metro' ? 'bg-orange-100' : 'bg-red-100'
+            }`}>
+                {stop.agency === 'metro' ? (
+                    <img src="/logoMetro.svg" alt="Metro Bilbao" className="w-6 h-6 object-contain" />
+                ) : (
+                    <Bus className="w-4 h-4 text-red-600" />
+                )}
+            </div>
+            <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-slate-900 truncate">{stop.name}</div>
                 <div className="text-xs text-slate-500">{stop.agency === 'metro' ? 'Metro Bilbao' : 'Bilbobus'}</div>
             </div>
         </button>
     );
 
-    return (
-        <div className="min-h-screen bg-slate-50">
-            {/* Hero Section */}
-            <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 text-white">
-                <div className="max-w-4xl mx-auto px-4 py-4">
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-                                <Train className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold">{t('appName')}</h1>
-                                <p className="text-xs text-white/80">{t('realtimeSchedules')}</p>
-                            </div>
-                        </div>
-                        <LanguageSwitcher />
-                    </div>
-
-                    {/* Route Search Card */}
-                    <div className="bg-white rounded-2xl p-4 shadow-xl">
-                        <div className="space-y-3">
-                            {/* Origin Input */}
-                            <div className="relative">
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">
-                                    {t('origin')}
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        value={origin}
-                                        onChange={(e) => {
-                                            setOrigin(e.target.value);
-                                            if (selectedOrigin) setSelectedOrigin(null);
-                                        }}
-                                        onFocus={() => origin.length >= 2 && !selectedOrigin && setShowOriginDropdown(true)}
-                                        placeholder={t('whereFrom')}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 
-                                                 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500
-                                                 transition-all text-sm"
-                                    />
-                                    {selectedOrigin && (
-                                        <button
-                                            onClick={() => {
-                                                setOrigin('');
-                                                setSelectedOrigin(null);
-                                            }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Origin Dropdown */}
-                                {showOriginDropdown && originResults.length > 0 && (
-                                    <>
-                                        <button
-                                            type="button"
-                                            className="fixed inset-0 z-30 cursor-default bg-transparent"
-                                            onClick={() => setShowOriginDropdown(false)}
-                                            onKeyDown={(e) => e.key === 'Escape' && setShowOriginDropdown(false)}
-                                            aria-label="Close dropdown"
-                                        />
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-40 max-h-56 overflow-y-auto divide-y divide-slate-100">
-                                            {originResults.map((stop) => renderDropdownItem(stop, 'origin'))}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            {/* Swap Button */}
-                            <div className="flex justify-center -my-1">
-                                <button
-                                    onClick={handleSwap}
-                                    disabled={!selectedOrigin && !selectedDest}
-                                    className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors text-slate-500 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title={t('swapOriginDest')}
-                                >
-                                    <ArrowUpDown className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            {/* Destination Input */}
-                            <div className="relative">
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">
-                                    {t('destination')}
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        value={destination}
-                                        onChange={(e) => {
-                                            setDestination(e.target.value);
-                                            if (selectedDest) setSelectedDest(null);
-                                        }}
-                                        onFocus={() => destination.length >= 2 && !selectedDest && setShowDestDropdown(true)}
-                                        placeholder={t('whereTo')}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 
-                                                 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500
-                                                 transition-all text-sm"
-                                    />
-                                    {selectedDest && (
-                                        <button
-                                            onClick={() => {
-                                                setDestination('');
-                                                setSelectedDest(null);
-                                            }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Destination Dropdown */}
-                                {showDestDropdown && destResults.length > 0 && (
-                                    <>
-                                        <button
-                                            type="button"
-                                            className="fixed inset-0 z-30 cursor-default bg-transparent"
-                                            onClick={() => setShowDestDropdown(false)}
-                                            onKeyDown={(e) => e.key === 'Escape' && setShowDestDropdown(false)}
-                                            aria-label="Close dropdown"
-                                        />
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-40 max-h-56 overflow-y-auto divide-y divide-slate-100">
-                                            {destResults.map((stop) => renderDropdownItem(stop, 'dest'))}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            {/* Search Button */}
-                            <button
-                                onClick={handleSearch}
-                                disabled={!selectedOrigin || !selectedDest}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 
-                                         disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed 
-                                         text-white font-semibold transition-all active:scale-[0.98]"
-                            >
-                                <Search className="w-5 h-5" />
-                                {t('searchRoute')}
-                            </button>
-                        </div>
-                    </div>
+    // Render coming soon placeholder for other transports
+    const renderComingSoon = (transportName: string, color: string) => (
+        <div className="flex-1 flex items-center justify-center">
+            <div className="text-center p-8">
+                <div className={`w-20 h-20 rounded-2xl ${color} mx-auto mb-4 flex items-center justify-center`}>
+                    <Construction className="w-10 h-10 text-white" />
                 </div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">{transportName}</h2>
+                <p className="text-slate-500 text-sm max-w-xs mx-auto">
+                    Estamos trabajando para traerte información en tiempo real de {transportName}
+                </p>
+                <span className="inline-block mt-4 px-4 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium">
+                    Próximamente
+                </span>
             </div>
+        </div>
+    );
 
-            {/* Main Content */}
-            <main className="max-w-4xl mx-auto px-4 py-6">
-                {/* Navigation Tabs */}
-                <div className="flex gap-2 mb-5">
-                    <button
-                        onClick={() => setActiveTab('favorites')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                            activeTab === 'favorites'
-                                ? 'bg-orange-600 text-white shadow-md'
-                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                        }`}
-                    >
-                        <Heart className={`w-4 h-4 ${activeTab === 'favorites' ? 'fill-current' : ''}`} />
-                        <span>{t('favorites')}</span>
-                        {favorites.length > 0 && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
-                                activeTab === 'favorites' ? 'bg-white/20' : 'bg-orange-100 text-orange-600'
-                            }`}>
-                                {favorites.length}
-                            </span>
-                        )}
-                    </button>
-
-                    <button
-                        onClick={() => setActiveTab('nearby')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                            activeTab === 'nearby'
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                        }`}
-                    >
-                        <Navigation className="w-4 h-4" />
-                        <span>{t('nearby')}</span>
-                    </button>
-
-                    <button
-                        onClick={() => setActiveTab('map')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                            activeTab === 'map'
-                                ? 'bg-green-600 text-white shadow-md'
-                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                        }`}
-                    >
-                        <Map className="w-4 h-4" />
-                        <span>{t('map')}</span>
-                    </button>
-                </div>
-
-                {/* Favorites Tab */}
-                {activeTab === 'favorites' && (
-                    <div className="animate-fadeIn">
-                        {favLoading ? (
-                            <div className="text-center py-12">
-                                <Loader2 className="w-6 h-6 animate-spin text-slate-300 mx-auto" />
-                                <p className="text-sm text-slate-500 mt-2">{t('loading')}</p>
-                            </div>
-                        ) : favorites.length === 0 ? (
-                            <div className="bg-slate-50 rounded-2xl p-8 text-center">
-                                <div className="w-12 h-12 rounded-full bg-slate-200 mx-auto mb-4 flex items-center justify-center">
-                                    <Heart className="w-6 h-6 text-slate-400" />
-                                </div>
-                                <h3 className="text-base font-semibold text-slate-700 mb-1">{t('favorites')} vacío</h3>
-                                <p className="text-sm text-slate-500">Busca un trayecto y guarda tus estaciones</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {favorites.map((fav) => (
-                                    <FavoriteStopCard
-                                        key={fav.id}
-                                        stopId={fav.stopId}
-                                        name={fav.name}
-                                        agency={fav.agency}
-                                        lat={fav.lat}
-                                        lon={fav.lon}
-                                        onTap={() => handleStopSelect(fav.stopId, fav.agency)}
-                                    />
-                                ))}
-                            </div>
-                        )}
+    return (
+        <div className="min-h-screen bg-slate-50 pb-20">
+            {/* Header - Minimalista */}
+            <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
+                <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center">
+                            <Train className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-lg font-bold text-slate-900">BilboTrans</span>
                     </div>
-                )}
+                    <LanguageSwitcher />
+                </div>
+            </header>
 
-                {/* Nearby Tab */}
-                {activeTab === 'nearby' && (
-                    <div className="animate-fadeIn">
-                        {!location ? (
-                            <div className="bg-slate-50 rounded-2xl p-8 text-center">
-                                <div className="w-12 h-12 rounded-full bg-blue-100 mx-auto mb-4 flex items-center justify-center">
-                                    <Navigation className="w-6 h-6 text-blue-500" />
+            {/* Metro Content */}
+            {activeTransport === 'metro' && (
+                <div className="animate-fadeIn">
+                    {/* Search Card */}
+                    <div className="bg-white border-b border-slate-100">
+                        <div className="max-w-lg mx-auto p-4">
+                            <div className="space-y-3">
+                                {/* Origin */}
+                                <div className="relative">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full bg-green-500 shrink-0" />
+                                        <input
+                                            type="text"
+                                            value={origin}
+                                            onChange={(e) => {
+                                                setOrigin(e.target.value);
+                                                if (selectedOrigin) setSelectedOrigin(null);
+                                            }}
+                                            onFocus={() => origin.length >= 2 && !selectedOrigin && setShowOriginDropdown(true)}
+                                            placeholder={t('whereFrom')}
+                                            className="flex-1 py-2.5 text-sm text-slate-900 placeholder-slate-400 
+                                                     bg-transparent border-none focus:outline-none"
+                                        />
+                                        {selectedOrigin && (
+                                            <button
+                                                onClick={() => { setOrigin(''); setSelectedOrigin(null); }}
+                                                className="p-1 rounded-full hover:bg-slate-100 text-slate-400"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    {showOriginDropdown && originResults.length > 0 && (
+                                        <>
+                                            <div className="fixed inset-0 z-30" onClick={() => setShowOriginDropdown(false)} />
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-40 max-h-64 overflow-y-auto">
+                                                {originResults.map((stop) => renderDropdownItem(stop, 'origin'))}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
-                                <h3 className="text-base font-semibold text-slate-700 mb-1">{t('nearby')}</h3>
-                                <p className="text-sm text-slate-500 mb-4">Activa tu ubicación para ver paradas cercanas</p>
+
+                                {/* Divider with Swap */}
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 flex justify-center">
+                                        <div className="w-0.5 h-6 bg-slate-200" />
+                                    </div>
+                                    <div className="flex-1 h-px bg-slate-100" />
+                                    <button
+                                        onClick={handleSwap}
+                                        disabled={!selectedOrigin && !selectedDest}
+                                        className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-30"
+                                    >
+                                        <ArrowUpDown className="w-4 h-4 text-slate-500" />
+                                    </button>
+                                </div>
+
+                                {/* Destination */}
+                                <div className="relative">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full bg-red-500 shrink-0" />
+                                        <input
+                                            type="text"
+                                            value={destination}
+                                            onChange={(e) => {
+                                                setDestination(e.target.value);
+                                                if (selectedDest) setSelectedDest(null);
+                                            }}
+                                            onFocus={() => destination.length >= 2 && !selectedDest && setShowDestDropdown(true)}
+                                            placeholder={t('whereTo')}
+                                            className="flex-1 py-2.5 text-sm text-slate-900 placeholder-slate-400 
+                                                     bg-transparent border-none focus:outline-none"
+                                        />
+                                        {selectedDest && (
+                                            <button
+                                                onClick={() => { setDestination(''); setSelectedDest(null); }}
+                                                className="p-1 rounded-full hover:bg-slate-100 text-slate-400"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {showDestDropdown && destResults.length > 0 && (
+                                        <>
+                                            <div className="fixed inset-0 z-30" onClick={() => setShowDestDropdown(false)} />
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-40 max-h-64 overflow-y-auto">
+                                                {destResults.map((stop) => renderDropdownItem(stop, 'dest'))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Search Button */}
                                 <button
-                                    onClick={requestLocation}
-                                    disabled={geoLoading}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+                                    onClick={handleSearch}
+                                    disabled={!selectedOrigin || !selectedDest}
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl 
+                                             bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 
+                                             text-white disabled:text-slate-400 font-semibold text-sm
+                                             transition-all active:scale-[0.98] disabled:cursor-not-allowed"
                                 >
-                                    <Navigation className="w-4 h-4" />
-                                    {geoLoading ? t('loading') : 'Activar ubicación'}
+                                    <Search className="w-4 h-4" />
+                                    {t('searchRoute')}
                                 </button>
                             </div>
-                        ) : (
-                            <NearbyStops
-                                stops={nearbyStops}
-                                onSelectStop={handleStopSelect}
-                                isLoading={isLoadingNearby}
-                            />
-                        )}
+                        </div>
                     </div>
-                )}
 
-                {/* Map Tab */}
-                {activeTab === 'map' && (
-                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm animate-fadeIn">
-                        {isLoadingMap ? (
-                            <div className="h-80 flex items-center justify-center">
-                                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                    {/* Main Content */}
+                    <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+                        {/* Metro Incidents */}
+                        <MetroIncidents />
+
+                        {/* Quick Tabs */}
+                        <div className="flex gap-2">
+                            {[
+                                { id: 'favorites', icon: Heart, label: t('favorites'), count: favorites.length },
+                                { id: 'nearby', icon: Navigation, label: t('nearby') },
+                                { id: 'map', icon: Map, label: t('map') },
+                            ].map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                            isActive
+                                                ? 'bg-orange-500 text-white'
+                                                : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <Icon className={`w-4 h-4 ${isActive && tab.id === 'favorites' ? 'fill-current' : ''}`} />
+                                        <span className="hidden sm:inline">{tab.label}</span>
+                                        {tab.count !== undefined && tab.count > 0 && (
+                                            <span className={`text-xs px-1.5 rounded-full ${
+                                                isActive ? 'bg-white/20' : 'bg-orange-100 text-orange-600'
+                                            }`}>
+                                                {tab.count}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Tab Content */}
+                        {activeTab === 'favorites' && (
+                            <div className="space-y-3 animate-fadeIn">
+                                {favLoading ? (
+                                    <div className="py-12 text-center">
+                                        <Loader2 className="w-6 h-6 animate-spin text-slate-300 mx-auto" />
+                                    </div>
+                                ) : favorites.length === 0 ? (
+                                    <div className="bg-white rounded-xl p-8 text-center border border-slate-100">
+                                        <Heart className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                                        <p className="text-slate-600 font-medium">Sin favoritos</p>
+                                        <p className="text-sm text-slate-400 mt-1">Busca un trayecto y guarda tus estaciones</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-3">
+                                        {favorites.map((fav) => (
+                                            <FavoriteStopCard
+                                                key={fav.id}
+                                                stopId={fav.stopId}
+                                                name={fav.name}
+                                                agency={fav.agency}
+                                                lat={fav.lat}
+                                                lon={fav.lon}
+                                                onTap={() => handleStopSelect(fav.stopId, fav.agency)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        ) : (
-                            <StopsMap
-                                stops={allStops}
-                                onSelectStop={handleStopSelect}
-                            />
                         )}
-                    </div>
-                )}
-            </main>
+
+                        {activeTab === 'nearby' && (
+                            <div className="animate-fadeIn">
+                                {!location ? (
+                                    <div className="bg-white rounded-xl p-8 text-center border border-slate-100">
+                                        <Navigation className="w-10 h-10 text-blue-200 mx-auto mb-3" />
+                                        <p className="text-slate-600 font-medium">Ubicación desactivada</p>
+                                        <p className="text-sm text-slate-400 mt-1 mb-4">Activa tu ubicación para ver paradas cercanas</p>
+                                        <button
+                                            onClick={requestLocation}
+                                            disabled={geoLoading}
+                                            className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+                                        >
+                                            {geoLoading ? 'Activando...' : 'Activar ubicación'}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <NearbyStops
+                                        stops={nearbyStops}
+                                        onSelectStop={handleStopSelect}
+                                        isLoading={isLoadingNearby}
+                                    />
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'map' && (
+                            <div className="bg-white rounded-xl border border-slate-100 overflow-hidden animate-fadeIn">
+                                {isLoadingMap ? (
+                                    <div className="h-72 flex items-center justify-center">
+                                        <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                                    </div>
+                                ) : (
+                                    <StopsMap
+                                        stops={allStops}
+                                        onSelectStop={handleStopSelect}
+                                    />
+                                )}
+                            </div>
+                        )}
+                    </main>
+                </div>
+            )}
+
+            {/* Bilbobus - Coming Soon */}
+            {activeTransport === 'bilbobus' && renderComingSoon('Bilbobus', 'bg-red-500')}
+
+            {/* Bizkaibus - Coming Soon */}
+            {activeTransport === 'bizkaibus' && renderComingSoon('Bizkaibus', 'bg-green-500')}
+
+            {/* Renfe - Coming Soon */}
+            {activeTransport === 'renfe' && renderComingSoon('Renfe Cercanías', 'bg-purple-500')}
+
+            {/* Bottom Navigation */}
+            <BottomNav 
+                activeTransport={activeTransport} 
+                onTransportChange={setActiveTransport} 
+            />
         </div>
     );
 }

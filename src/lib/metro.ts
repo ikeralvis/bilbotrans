@@ -11,37 +11,46 @@ interface MetroPlatform {
 
 const PLATFORMS: MetroPlatform[] = metroPlatforms as MetroPlatform[];
 
-interface MetroTrain {
-    wagons: number;
-    estimated: number;
-    direction: string;
-    time: string;
-    timeRounded: string;
+// New API response structure for /api/stations/{code}
+interface StationApiTrain {
+    Destination: string;
+    Direction: string | number;
+    Length: number;
+    Minutes: number;
+    Time: string;
+    line: string;
 }
 
-interface MetroApiResponse {
-    trains: MetroTrain[];
-    trip: {
-        fromStation: { code: string; name: string };
-        toStation: { code: string; name: string };
-        duration: number;
-        line: string;
-        transfer: boolean;
-    };
-    exits?: {
-        origin: Array<{
+interface StationApiResponse {
+    id: number;
+    name: string;
+    code: string;
+    line: string[];
+    exits: Array<{
+        id: number;
+        name: string;
+        address: string;
+        elevator: boolean;
+        nocturnal: boolean;
+        wheelchairAccessible: boolean;
+        latitude: string;
+        longitude: string;
+    }>;
+    platforms: {
+        Station: string;
+        StationId: string;
+        Platforms: StationApiTrain[][];
+        Entrances?: Array<{
             id: number;
             name: string;
-            elevator: boolean;
-            nocturnal: boolean;
-        }>;
-        destiny: Array<{
-            id: number;
-            name: string;
-            elevator: boolean;
-            nocturnal: boolean;
+            message_es: string;
+            message_eu: string;
         }>;
     };
+    issues: Array<{
+        title?: string;
+        description?: string;
+    }>;
 }
 
 export interface Exit {
@@ -49,6 +58,8 @@ export interface Exit {
     name: string;
     elevator: boolean;
     nocturnal: boolean;
+    wheelchairAccessible?: boolean;
+    address?: string;
 }
 
 export interface MetroArrival {
@@ -58,108 +69,109 @@ export interface MetroArrival {
     etaDisplay: string;
     platform?: string;
     wagons?: number;
-    duration?: number;
-    originExits?: Exit[];
-    destinationExits?: Exit[];
+    time?: string;
+}
+
+export interface StationInfo {
+    code: string;
+    name: string;
+    lines: string[];
+    exits: Exit[];
+    issues: Array<{ title?: string; description?: string }>;
+    platform1: MetroArrival[];
+    platform2: MetroArrival[];
 }
 
 /**
- * Fetch real-time data from Metro Bilbao API
- * Uses: https://api.metrobilbao.eus/metro/real-time/{origin}/{destination}
+ * Fetch station info with real-time arrivals from Metro Bilbao API
+ * Uses: https://api.metrobilbao.eus/api/stations/{stationCode}?lang={lang}
+ * This is the preferred endpoint as it returns correct line info for each train
  */
-async function fetchMetroRealtime(
-    originCode: string,
-    destinationCode: string
-): Promise<MetroArrival[]> {
+export async function getStationInfo(stationCode: string, lang: string = 'es'): Promise<StationInfo | null> {
     try {
-        const url = `https://api.metrobilbao.eus/metro/real-time/${originCode}/${destinationCode}`;
-        console.log(`[Metro API] Fetching: ${url}`);
+        const url = `https://api.metrobilbao.eus/api/stations/${stationCode}?lang=${lang}`;
+        console.log(`[Metro API] Fetching station: ${url}`);
         
-        const response = await axios.get<MetroApiResponse>(url, {
-            timeout: 5000
+        const response = await axios.get<StationApiResponse>(url, {
+            timeout: 8000
         });
 
-        console.log(`[Metro API] Response status: ${response.status}`);
         const data = response.data;
-        const trains = data.trains || [];
-        const lineId = data.trip?.line || 'L1/L2';
-        const duration = data.trip?.duration;
-        const originExits = data.exits?.origin;
-        const destinationExits = data.exits?.destiny;
+        console.log(`[Metro API] Got station ${data.name} with ${data.platforms?.Platforms?.length || 0} platforms`);
 
-        console.log(`[Metro API] Got ${trains.length} trains, line: ${lineId}`);
-
-        return trains.map((train: MetroTrain) => ({
-            lineId: lineId,
-            destination: train.direction,
-            etaMinutes: train.estimated,
-            etaDisplay: train.estimated <= 0 ? 'Ya aquí' : `${train.estimated} min`,
-            platform: undefined,
-            wagons: train.wagons,
-            duration: duration,
-            originExits: originExits,
-            destinationExits: destinationExits
+        // Parse platform 1 trains (index 0)
+        const platform1Trains: MetroArrival[] = (data.platforms?.Platforms?.[0] || []).map((train: StationApiTrain) => ({
+            lineId: train.line || 'L1',
+            destination: train.Destination,
+            etaMinutes: train.Minutes,
+            etaDisplay: train.Minutes <= 0 ? 'Ya aquí' : `${train.Minutes} min`,
+            platform: 'Andén 1',
+            wagons: train.Length,
+            time: train.Time
         }));
+
+        // Parse platform 2 trains (index 1)
+        const platform2Trains: MetroArrival[] = (data.platforms?.Platforms?.[1] || []).map((train: StationApiTrain) => ({
+            lineId: train.line || 'L2',
+            destination: train.Destination,
+            etaMinutes: train.Minutes,
+            etaDisplay: train.Minutes <= 0 ? 'Ya aquí' : `${train.Minutes} min`,
+            platform: 'Andén 2',
+            wagons: train.Length,
+            time: train.Time
+        }));
+
+        // Parse exits
+        const exits: Exit[] = (data.exits || []).map(exit => ({
+            id: exit.id,
+            name: exit.name,
+            elevator: exit.elevator,
+            nocturnal: exit.nocturnal,
+            wheelchairAccessible: exit.wheelchairAccessible,
+            address: exit.address
+        }));
+
+        // Sort trains by arrival time
+        const sortedPlatform1 = [...platform1Trains].sort((a, b) => a.etaMinutes - b.etaMinutes);
+        const sortedPlatform2 = [...platform2Trains].sort((a, b) => a.etaMinutes - b.etaMinutes);
+
+        return {
+            code: data.code,
+            name: data.name,
+            lines: data.line || [],
+            exits,
+            issues: data.issues || [],
+            platform1: sortedPlatform1,
+            platform2: sortedPlatform2
+        };
     } catch (error) {
         if (axios.isAxiosError(error)) {
-            console.error(`[Metro API] Error ${error.response?.status} for ${originCode} to ${destinationCode}:`, error.message);
+            console.error(`[Metro API] Error ${error.response?.status} for station ${stationCode}:`, error.message);
         } else {
-            console.error(`[Metro API] Error fetching ${originCode} to ${destinationCode}:`, error);
+            console.error(`[Metro API] Error fetching station ${stationCode}:`, error);
         }
-        return [];
+        return null;
     }
 }
 
 /**
  * Get all arrivals for a specific stop (both platforms)
- * This queries both platform directions and returns all trains
+ * Now uses the simplified /api/stations endpoint
  */
-export async function getMetroArrivalsByStop(stopCode: string): Promise<MetroArrival[]> {
+export async function getMetroArrivalsByStop(stopCode: string, lang: string = 'es'): Promise<MetroArrival[]> {
     console.log(`[Metro] Getting arrivals for stop: ${stopCode}`);
-    console.log(`[Metro] Total platforms in config: ${PLATFORMS.length}`);
     
     try {
-        // Find the stop configuration
-        const stopConfig = PLATFORMS.find(p => p.code === stopCode);
-        if (!stopConfig) {
-            console.error(`[Metro] Stop ${stopCode} not found in platforms configuration`);
-            console.log(`[Metro] Available stops:`, PLATFORMS.map(p => p.code).join(', '));
+        const stationInfo = await getStationInfo(stopCode, lang);
+        
+        if (!stationInfo) {
+            console.error(`[Metro] Could not get station info for ${stopCode}`);
             return [];
         }
 
-        console.log(`[Metro] Found stop config:`, stopConfig);
-
-        const allArrivals: MetroArrival[] = [];
-
-        // Process Platform 1
-        if (stopConfig.platform1.length > 0) {
-            console.log(`[Metro] Querying Platform 1 destinations:`, stopConfig.platform1);
-            for (const destCode of stopConfig.platform1) {
-                console.log(`[Metro] Fetching ${stopCode} -> ${destCode}`);
-                const arrivals = await fetchMetroRealtime(stopCode, destCode);
-                console.log(`[Metro] Got ${arrivals.length} trains for platform 1`);
-                allArrivals.push(...arrivals.map(a => ({ ...a, platform: 'Andén 1' })));
-            }
-        }
-
-        // Process Platform 2
-        if (stopConfig.platform2.length > 0) {
-            console.log(`[Metro] Querying Platform 2 destinations:`, stopConfig.platform2);
-            for (const destCode of stopConfig.platform2) {
-                console.log(`[Metro] Fetching ${stopCode} -> ${destCode}`);
-                const arrivals = await fetchMetroRealtime(stopCode, destCode);
-                console.log(`[Metro] Got ${arrivals.length} trains for platform 2`);
-                allArrivals.push(...arrivals.map(a => ({ ...a, platform: 'Andén 2' })));
-            }
-        }
-
-        console.log(`[Metro] Total arrivals before sort: ${allArrivals.length}`);
-        
-        // Sort by ETA
-        const sorted = allArrivals.sort((a, b) => a.etaMinutes - b.etaMinutes);
-        console.log(`[Metro] Returning ${sorted.length} sorted arrivals`);
-        
-        return sorted;
+        // Combine both platforms and sort by ETA
+        const allArrivals = [...stationInfo.platform1, ...stationInfo.platform2];
+        return allArrivals.sort((a, b) => a.etaMinutes - b.etaMinutes);
     } catch (error) {
         console.error(`[Metro] Error in getMetroArrivalsByStop for ${stopCode}:`, error);
         return [];
@@ -172,5 +184,13 @@ export async function getMetroArrivalsByStop(stopCode: string): Promise<MetroArr
 export function getStopName(stopCode: string): string {
     const stop = PLATFORMS.find(p => p.code === stopCode);
     return stop?.name || stopCode;
+}
+
+/**
+ * Get all Metro lines a station serves
+ */
+export function getStationLines(stopCode: string): string[] {
+    const stop = PLATFORMS.find(p => p.code === stopCode);
+    return stop?.lines || [];
 }
 

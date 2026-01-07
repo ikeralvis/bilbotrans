@@ -3,13 +3,13 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { Heart, ArrowLeft, Clock, Loader2, RefreshCw, MapPin, AlertCircle } from 'lucide-react';
+import { Heart, ArrowLeft, Clock, Loader2, RefreshCw, MapPin, AlertCircle, DoorClosed, Moon, Icon } from 'lucide-react';
 import { getStopDetails } from '@/app/actions';
 import { TransportCard } from '@/components/TransportCard';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
+import { arrowsUpDownSquare } from '@lucide/lab';
 import { getMetroArrivalsByStop, type Exit } from '@/lib/metro';
-import type { MetroArrival } from '@/lib/metro';
 
 interface Schedule {
     lineId: string;
@@ -318,7 +318,8 @@ export default function StationPage() {
                 {agency === 'metro' && schedule1.length > 0 && (schedule1[0].originExits || schedule1[0].destinationExits) && (
                     <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                         <h2 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            🚪 Salidas y Accesos
+                            <DoorClosed className="w-5 h-5 text-slate-700" />
+                            Salidas y Accesos 
                         </h2>
                         
                         {schedule1[0].originExits && schedule1[0].originExits.length > 0 && (
@@ -331,13 +332,16 @@ export default function StationPage() {
                                         <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
                                             <div className="flex gap-1 flex-shrink-0 mt-0.5">
                                                 {exit.elevator && (
-                                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 text-xs font-bold" title="Ascensor disponible">
-                                                        🛗
+                                                    <span
+                                                        className="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700"
+                                                        title="Ascensor disponible"
+                                                    >
+                                                        <Icon iconNode={arrowsUpDownSquare} />
                                                     </span>
                                                 )}
                                                 {exit.nocturnal && (
-                                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-700 text-xs font-bold" title="Acceso nocturno">
-                                                        🌙
+                                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-700" title="Acceso nocturno">
+                                                        <Moon className="w-3 h-3" />
                                                     </span>
                                                 )}
                                             </div>

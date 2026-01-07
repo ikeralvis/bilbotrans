@@ -46,54 +46,6 @@ const setCache = <T>(key: string, data: T, ttl: number = CACHE_TTL) => {
     });
 };
 
-export async function searchStops(query: string): Promise<SearchResult[]> {
-    if (!query || query.length < 2) return [];
-
-    const cacheKey = getCacheKey('search_stops', query.toLowerCase());
-    const cached = getCached<SearchResult[]>(cacheKey);
-
-    if (cached) {
-        return cached;
-    }
-
-    try {
-        const results = await db.select()
-            .from(stops)
-            .where(
-                or(
-                    ilike(stops.name, `%${query}%`),
-                    ilike(stops.id, `%${query}%`)
-                )
-            )
-            .limit(50); // Traer más para deduplicar
-
-        // Deduplicar por (stopId + agency) - evitar duplicados de plataformas
-        const seen = new Set<string>();
-        const mapped = results
-            .map(r => ({
-                id: r.id,
-                name: r.name,
-                agency: r.agency,
-                lat: r.lat || 0,
-                lon: r.lon || 0,
-                metadata: r.metadata
-            }))
-            .filter(r => {
-                const key = `${r.id.replace(/[12]$/, '')}_${r.agency}`; // Usar stop base sin plataforma
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            })
-            .slice(0, 15); // Limitar después de deduplicar
-
-        setCache(cacheKey, mapped);
-        return mapped;
-    } catch (error) {
-        console.error('Error searching stops:', error);
-        return [];
-    }
-}
-
 export async function getStopDetails(stopId: string, agency: string): Promise<SearchResult | null> {
     const cacheKey = getCacheKey('stop_details', `${stopId}_${agency}`);
     const cached = getCached<SearchResult>(cacheKey);

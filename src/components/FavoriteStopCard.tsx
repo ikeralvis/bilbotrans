@@ -50,11 +50,19 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
         }
     }, [stopId, agency]);
 
+    // Función para extraer el nombre de línea limpio (L1, L2, L3)
+    const getCleanLineId = (lineId: string): string => {
+        // Si contiene L1, L2 o L3, extraer solo eso
+        const regex = /L[1-3]/;
+        const match = regex.exec(lineId);
+        return match ? match[0] : lineId;
+    };
+
     const renderTrainRow = (train: TrainInfo, lineColor: string) => (
         <div className="flex items-center justify-between gap-1 text-xs">
             <div className="flex items-center gap-1 min-w-0">
                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white shrink-0 ${lineColor}`}>
-                    {train.lineId.replace('L', '')}
+                    {getCleanLineId(train.lineId)}
                 </span>
                 <span className="text-slate-600 truncate">{train.destination}</span>
             </div>
