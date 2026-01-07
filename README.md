@@ -1,22 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚌 BilboTrans - Horarios Metro & Bilbobus
 
-## Getting Started
+Una aplicación moderna, minimalista y rápida para consultar **horarios en tiempo real** de:
+- 🟠 **Metro Bilbao** (L1, L2)
+- 🔴 **Bilbobus**
 
-First, run the development server:
+## ✨ Características
 
+- ✅ **Datos en tiempo real** desde GTFS-RT
+- ✅ **Sin duplicados** - Una parada = Un resultado
+- ✅ **Paradas favoritas** con almacenamiento local
+- ✅ **Paradas cercanas** con geolocalización
+- ✅ **Mapa interactivo** (Leaflet)
+- ✅ **PWA** - Instala en home screen
+- ✅ **Diseño minimalista** estilo Apple
+- ✅ **Rápido** - Caché inteligente
+
+## 🚀 Quick Start
+
+### Windows
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+setup-and-run.bat
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### macOS / Linux
+```bash
+bash setup-and-run.sh
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Manual
+```bash
+npm install leaflet react-leaflet @types/leaflet
+npm run dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000)
+
+## 📱 Cómo usar
+
+1. **Busca una parada** - Escribe el nombre (ej: "Abando")
+2. **Selecciona resultado** - Sin duplicados, una sola entrada
+3. **Ves los horarios REALES** - Divididos por andén (Metro)
+4. **Marca como favorita** ❤️ - Aparece en la home
+5. **Mira en el mapa** 🗺️ - Ubicación exacta
+
+## 📊 Cambios Recientes
+
+### ✅ Datos REALES (Enero 2026)
+- Integración con GTFS-RT del Metro Bilbao
+- Horarios en tiempo real, no mock data
+- Destinos correctos (Plentzia, Basauri, Kabiezes, Etxebarri)
+- Separación correcta de andenes (1 y 2)
+
+### ✅ Sin Duplicados
+- Búsqueda sin repetir paradas
+- Deduplicación automática
+
+### ✨ Nuevo: Mapa
+- Visualiza todas las paradas
+- Haz click para ver horarios
+- Tu ubicación en tiempo real
+
+## 📚 Documentación
+
+- **[CHANGELOG.md](./CHANGELOG.md)** - Qué cambió
+- **[REAL_DATA_GUIDE.md](./REAL_DATA_GUIDE.md)** - Cómo funciona ahora
+- **[IMPROVEMENTS.md](./IMPROVEMENTS.md)** - Roadmap completo
+- **[QUICK_START.md](./QUICK_START.md)** - Guía rápida
+
+## 🛠️ Tecnología
+
+- **Next.js 16** - Framework React moderno
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Estilos minimalistas
+- **Leaflet** - Mapas interactivos
+- **GTFS-RT** - Datos en tiempo real
+- **PWA** - Funciona offline
+
+## 📍 Paradas Disponibles
+
+### Línea 1 (L1)
+- Plentzia ↔ Etxebarri
+
+### Línea 2 (L2)
+- Kabiezes ↔ Basauri
+
+[Ver mapa completo en la app]
+
+## 🐛 Problemas Conocidos
+
+- **Bilbobus**: Todavía usa mock data (en desarrollo)
+- **Mapeo incompleto**: Hay paradas que faltan nombres (se van descubriendo)
+
+## 🚧 En desarrollo
+
+- [ ] API real de Bilbobus
+- [ ] Mapa en la página principal
+- [ ] Tema oscuro
+- [ ] Multiidioma
+- [ ] Versión nativa (iOS/Android)
+
+## 🔗 URLs Útiles
+
+- [Metro Bilbao GTFS-RT](https://ctb-gtfs-rt.s3.eu-south-2.amazonaws.com/metro-bilbao-trip-updates.pb)
+- [OpenStreetMap](https://www.openstreetmap.org/)
+
+## 📝 Licencia
+
+MIT - Libre para usar y modificar
+
+---
+
+**Última actualización**: Enero 2026
+
+🎉 ¡Ahora con datos REALES!
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
