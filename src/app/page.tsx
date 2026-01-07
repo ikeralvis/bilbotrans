@@ -13,7 +13,8 @@ import { useGeolocation } from '@/context/GeolocationContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { getNearbyStops, getAllStops } from '@/app/actions';
 import { searchStops } from '@/lib/stopSearch';
-import { Heart, Navigation, Map, Loader2, Search, ArrowUpDown, Train, X, Bus, Construction } from 'lucide-react';
+import { Heart, Navigation, Map, Loader2, Search, ArrowUpDown, Train, X, Bus, Construction, MapPin } from 'lucide-react';
+import { searchBizkaibusStops, getBizkaibusArrivals, BizkaibusStop, BizkaibusArrival } from '@/lib/bizkaibus';
 
 interface StopLocation {
     id: string;
@@ -44,6 +45,14 @@ export default function Home() {
     const [selectedDest, setSelectedDest] = useState<StopLocation | null>(null);
     const [showOriginDropdown, setShowOriginDropdown] = useState(false);
     const [showDestDropdown, setShowDestDropdown] = useState(false);
+    
+    // Bizkaibus state
+    const [bizkaibusSearch, setBizkaibusSearch] = useState('');
+    const [bizkaibusResults, setBizkaibusResults] = useState<BizkaibusStop[]>([]);
+    const [selectedBizkaibusStop, setSelectedBizkaibusStop] = useState<BizkaibusStop | null>(null);
+    const [bizkaibusArrivals, setBizkaibusArrivals] = useState<BizkaibusArrival[]>([]);
+    const [isLoadingBizkaibus, setIsLoadingBizkaibus] = useState(false);
+    const [showBizkaibusDropdown, setShowBizkaibusDropdown] = useState(false);
 
     // Load all stops for the map
     useEffect(() => {
@@ -130,6 +139,52 @@ export default function Home() {
         }, 300);
         return () => clearTimeout(delayDebounceFn);
     }, [destination, selectedDest]);
+
+    // Buscar paradas Bizkaibus
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (bizkaibusSearch.length >= 2 && !selectedBizkaibusStop) {
+                const results = await searchBizkaibusStops(bizkaibusSearch);
+                setBizkaibusResults(results);
+                setShowBizkaibusDropdown(true);
+            } else {
+                setBizkaibusResults([]);
+                setShowBizkaibusDropdown(false);
+            }
+        }, 300);
+        return () => clearTimeout(delayDebounceFn);
+    }, [bizkaibusSearch, selectedBizkaibusStop]);
+
+    // Cargar llegadas de Bizkaibus cuando se selecciona una parada
+    const loadBizkaibusArrivals = useCallback(async (stopId: string) => {
+        setIsLoadingBizkaibus(true);
+        try {
+            const response = await getBizkaibusArrivals(stopId);
+            if (response.status === 'OK') {
+                setBizkaibusArrivals(response.arrivals);
+            } else {
+                setBizkaibusArrivals([]);
+            }
+        } catch (err) {
+            console.error('Error loading Bizkaibus arrivals:', err);
+            setBizkaibusArrivals([]);
+        } finally {
+            setIsLoadingBizkaibus(false);
+        }
+    }, []);
+
+    const handleSelectBizkaibusStop = useCallback((stop: BizkaibusStop) => {
+        setSelectedBizkaibusStop(stop);
+        setBizkaibusSearch(stop.name);
+        setShowBizkaibusDropdown(false);
+        loadBizkaibusArrivals(stop.id);
+    }, [loadBizkaibusArrivals]);
+
+    const handleClearBizkaibusStop = useCallback(() => {
+        setSelectedBizkaibusStop(null);
+        setBizkaibusSearch('');
+        setBizkaibusArrivals([]);
+    }, []);
 
     const handleStopSelect = useCallback((stopId: string, agency: string) => {
         router.push(`/station/${stopId}?agency=${agency}`);
@@ -441,8 +496,166 @@ export default function Home() {
             {/* Bilbobus - Coming Soon */}
             {activeTransport === 'bilbobus' && renderComingSoon('Bilbobus', 'bg-red-500')}
 
-            {/* Bizkaibus - Coming Soon */}
-            {activeTransport === 'bizkaibus' && renderComingSoon('Bizkaibus', 'bg-green-500')}
+            {/* Bizkaibus - Functional */}
+            {activeTransport === 'bizkaibus' && (
+                <div className="flex-1 flex flex-col">
+                    {/* Bizkaibus Header */}
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-6">
+                        <div className="max-w-lg mx-auto">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                                    <Bus className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold">Bizkaibus</h2>
+                                    <p className="text-sm text-white/70">Autobuses de Bizkaia</p>
+                                </div>
+                            </div>
+                            
+                            {/* Search */}
+                            <div className="relative">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-600" />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar parada..."
+                                        value={bizkaibusSearch}
+                                        onChange={(e) => {
+                                            setBizkaibusSearch(e.target.value);
+                                            if (selectedBizkaibusStop) {
+                                                setSelectedBizkaibusStop(null);
+                                                setBizkaibusArrivals([]);
+                                            }
+                                        }}
+                                        className="w-full pl-10 pr-10 py-3 rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/50"
+                                    />
+                                    {bizkaibusSearch && (
+                                        <button
+                                            onClick={handleClearBizkaibusStop}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100"
+                                        >
+                                            <X className="w-4 h-4 text-slate-400" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Dropdown results */}
+                                {showBizkaibusDropdown && bizkaibusResults.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-slate-200 max-h-64 overflow-y-auto z-50">
+                                        {bizkaibusResults.map((stop) => (
+                                            <button
+                                                key={stop.id}
+                                                onClick={() => handleSelectBizkaibusStop(stop)}
+                                                className="w-full text-left px-4 py-3 hover:bg-green-50 transition-colors flex items-center gap-3"
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                                                    <Bus className="w-4 h-4 text-green-600" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-sm font-medium text-slate-900 truncate">{stop.name}</div>
+                                                    <div className="text-xs text-slate-500">{stop.municipality}</div>
+                                                </div>
+                                                <span className="text-xs text-slate-400 shrink-0">#{stop.id}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Results */}
+                    <div className="flex-1 max-w-lg mx-auto w-full px-4 py-6">
+                        {selectedBizkaibusStop ? (
+                            <div className="space-y-4">
+                                {/* Selected stop info */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                                            <Bus className="w-6 h-6 text-green-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-bold text-slate-900 truncate">{selectedBizkaibusStop.name}</h3>
+                                            <p className="text-sm text-slate-500">{selectedBizkaibusStop.municipality} • Parada #{selectedBizkaibusStop.id}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => loadBizkaibusArrivals(selectedBizkaibusStop.id)}
+                                            disabled={isLoadingBizkaibus}
+                                            className="p-2 rounded-lg bg-green-100 hover:bg-green-200 text-green-600 transition-colors"
+                                        >
+                                            <Loader2 className={`w-5 h-5 ${isLoadingBizkaibus ? 'animate-spin' : ''}`} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Arrivals */}
+                                {isLoadingBizkaibus ? (
+                                    <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+                                        <Loader2 className="w-8 h-8 animate-spin text-green-500 mx-auto mb-2" />
+                                        <p className="text-slate-500">Cargando llegadas...</p>
+                                    </div>
+                                ) : bizkaibusArrivals.length > 0 ? (
+                                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                                        <div className="p-4 border-b border-slate-100 bg-green-50">
+                                            <h3 className="font-semibold text-green-800 flex items-center gap-2">
+                                                <Bus className="w-4 h-4" />
+                                                Próximos buses
+                                            </h3>
+                                        </div>
+                                        <div className="divide-y divide-slate-100">
+                                            {bizkaibusArrivals.map((arrival, idx) => (
+                                                <div 
+                                                    key={`${arrival.lineId}-${arrival.destination}-${idx}`}
+                                                    className={`p-4 flex items-center justify-between ${idx === 0 ? 'bg-green-50' : ''}`}
+                                                >
+                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                        <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${
+                                                            idx === 0 ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-600'
+                                                        }`}>
+                                                            <span className="text-lg font-bold leading-none">{arrival.etaMinutes}</span>
+                                                            <span className="text-[10px] font-medium">min</span>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-2 py-0.5 rounded bg-green-600 text-white text-xs font-bold">
+                                                                    {arrival.lineId}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-slate-700 truncate mt-0.5">{arrival.destination}</p>
+                                                        </div>
+                                                    </div>
+                                                    {arrival.nextEtaMinutes && (
+                                                        <div className="text-right shrink-0 ml-3">
+                                                            <p className="text-xs text-slate-400">Siguiente</p>
+                                                            <p className="text-sm font-medium text-slate-600">{arrival.nextEtaMinutes} min</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+                                        <Bus className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                                        <p className="text-slate-600 font-medium">No hay buses disponibles</p>
+                                        <p className="text-sm text-slate-400 mt-1">Intenta con otra parada o más tarde</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12">
+                                <div className="w-20 h-20 rounded-2xl bg-green-100 mx-auto mb-4 flex items-center justify-center">
+                                    <MapPin className="w-10 h-10 text-green-500" />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-2">Busca una parada</h3>
+                                <p className="text-slate-500 text-sm max-w-xs mx-auto">
+                                    Introduce el nombre o número de una parada de Bizkaibus para ver los próximos buses
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Renfe - Coming Soon */}
             {activeTransport === 'renfe' && renderComingSoon('Renfe Cercanías', 'bg-purple-500')}

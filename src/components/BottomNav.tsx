@@ -24,19 +24,19 @@ const navItems: NavItem[] = [
         available: true 
     },
     { 
-        id: 'bilbobus', 
-        label: 'Bilbobus', 
-        icon: Bus, 
-        color: 'text-red-600', 
-        bgColor: 'bg-red-100',
-        available: false 
-    },
-    { 
         id: 'bizkaibus', 
         label: 'Bizkaibus', 
         icon: Bus, 
         color: 'text-green-600', 
         bgColor: 'bg-green-100',
+        available: true 
+    },
+    { 
+        id: 'bilbobus', 
+        label: 'Bilbobus', 
+        icon: Bus, 
+        color: 'text-red-600', 
+        bgColor: 'bg-red-100',
         available: false 
     },
     { 

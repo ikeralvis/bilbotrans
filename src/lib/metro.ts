@@ -70,6 +70,9 @@ export interface MetroArrival {
     platform?: string;
     wagons?: number;
     time?: string;
+    duration?: number;
+    originExits?: Exit[];
+    destinationExits?: Exit[];
 }
 
 export interface StationInfo {
@@ -169,8 +172,12 @@ export async function getMetroArrivalsByStop(stopCode: string, lang: string = 'e
             return [];
         }
 
-        // Combine both platforms and sort by ETA
-        const allArrivals = [...stationInfo.platform1, ...stationInfo.platform2];
+        // Combine both platforms, add station exits, and sort by ETA
+        const allArrivals = [...stationInfo.platform1, ...stationInfo.platform2].map(arrival => ({
+            ...arrival,
+            originExits: stationInfo.exits,
+            destinationExits: stationInfo.exits
+        }));
         return allArrivals.sort((a, b) => a.etaMinutes - b.etaMinutes);
     } catch (error) {
         console.error(`[Metro] Error in getMetroArrivalsByStop for ${stopCode}:`, error);
