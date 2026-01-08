@@ -273,8 +273,8 @@ export default function Home() {
             <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
                 <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center">
-                            <Train className="w-4 h-4 text-white" />
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+                            <img src="/logo.png" alt="BilboTrans" className="w-7 h-7 object-contain" />
                         </div>
                         <span className="text-lg font-bold text-slate-900">BilboTrans</span>
                     </div>
