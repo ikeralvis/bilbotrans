@@ -54,10 +54,10 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                 setError(null);
                 try {
                     const arrivals = await getBizkaibusArrivals(stopId);
-                    const list = arrivals.slice(0, 4).map(a => ({
+                    const list = arrivals.arrivals.slice(0, 4).map(a => ({
                         destination: a.destination,
-                        etaMinutes: a.minutes,
-                        lineId: a.line
+                        etaMinutes: a.etaMinutes,
+                        lineId: a.lineId
                     }));
                     setTrainsL1(list);
                     if (list.length === 0) setError('Sin servicio');
