@@ -43,10 +43,11 @@ export function StopSearch() {
                 <input
                     type="text"
                     placeholder="Buscar parada..."
-                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-slate-100 border border-transparent 
-                       focus:border-slate-300 focus:ring-1 focus:ring-slate-300 focus:bg-white
-                       outline-none transition-all placeholder:text-slate-400 text-base font-medium
-                       text-slate-900" 
+                          className="w-full h-12 pl-11 pr-4 rounded-xl bg-slate-100 border border-transparent 
+                              focus:border-slate-300 focus:ring-1 focus:ring-slate-300 focus:bg-white
+                              outline-none transition-all placeholder:text-slate-400 text-base font-medium
+                              text-slate-900"
+                          style={{ fontSize: 16 }}
                     value={term}
                     onChange={(e) => setTerm(e.target.value)}
                     onFocus={() => term.length >= 2 && setIsOpen(true)}

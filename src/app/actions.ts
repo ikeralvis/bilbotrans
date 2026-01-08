@@ -162,3 +162,47 @@ export async function getAllStops(): Promise<SearchResult[]> {
         return [];
     }
 }
+
+export async function fetchRenfeSchedule(origin: string, destination: string, dateStr: string) {
+    const RENFE_URL = 'https://horarios.renfe.com/cer/HorariosServlet';
+
+    // Calculate current hour for "HoraViajeOrigen"
+    const now = new Date();
+    const currentHour = String(now.getHours()).padStart(2, '0');
+
+    // Body params
+    const body = {
+        nucleo: "60", // Bilbao
+        origen: origin,
+        destino: destination,
+        fchaViaje: dateStr,
+        validaReglaNegocio: true,
+        tiempoReal: true,
+        servicioHorarios: "VTI",
+        horaViajeOrigen: currentHour,
+        horaViajeLlegada: "26", // End of service
+        accesibilidadTrenes: false,
+    };
+
+    try {
+        console.log('Fetching Renfe schedule:', body);
+        const response = await fetch(RENFE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=UTF-8',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Renfe API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { ok: true, data };
+    } catch (error) {
+        console.error('Renfe fetch error:', error);
+        return { ok: false, error: 'Failed to fetch schedule' };
+    }
+}

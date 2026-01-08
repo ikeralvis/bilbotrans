@@ -73,12 +73,12 @@ function calculateArrivalTime(minutes: number): string {
 export async function getBizkaibusArrivals(stopId: string): Promise<BizkaibusResponse> {
     try {
         const url = `https://apli.bizkaia.net/APPS/DANOK/TQWS/TQ.ASMX/GetPasoParadaMobile_JSON?callback=%22%22&strLinea=&strParada=${stopId}`;
-        
+
         console.log(`[Bizkaibus API] Fetching stop: ${stopId}`);
-        
+
         const response = await fetch(url, { method: 'GET' });
         const text = await response.text();
-        
+
         // Clean the JSONP response
         let cleanedText = text.replace('""(', '').replace(');', '').replace(/'/g, '"');
         const jsonData = JSON.parse(cleanedText);
@@ -93,8 +93,8 @@ export async function getBizkaibusArrivals(stopId: string): Promise<BizkaibusRes
 
         if (jsonData.STATUS !== 'OK') {
             console.error(`[Bizkaibus API] Error status: ${jsonData.STATUS}`);
-            return { 
-                status: 'ERROR', 
+            return {
+                status: 'ERROR',
                 arrivals: [],
                 error: 'API returned error status'
             };
@@ -136,8 +136,8 @@ export async function getBizkaibusArrivals(stopId: string): Promise<BizkaibusRes
         };
     } catch (error) {
         console.error(`[Bizkaibus API] Error fetching stop ${stopId}:`, error);
-        return { 
-            status: 'ERROR', 
+        return {
+            status: 'ERROR',
             arrivals: [],
             error: error instanceof Error ? error.message : 'Unknown error'
         };
@@ -149,7 +149,7 @@ export async function getBizkaibusArrivals(stopId: string): Promise<BizkaibusRes
  */
 export async function searchBizkaibusStops(query: string, limit: number = 10): Promise<BizkaibusStop[]> {
     const normalizedQuery = query.toLowerCase().trim();
-    
+
     if (normalizedQuery.length < 2) return [];
 
     const stops = (bizkaibusStopsData as BizkaibusStopRaw[])
@@ -167,7 +167,7 @@ export async function searchBizkaibusStops(query: string, limit: number = 10): P
             lat: parseFloat(stop.LATITUD),
             lon: parseFloat(stop.LONGITUD)
         }));
-    
+
     return stops;
 }
 
@@ -190,7 +190,7 @@ export function getAllBizkaibusStops(): BizkaibusStop[] {
 export function getBizkaibusStopById(stopId: string): BizkaibusStop | null {
     const stop = (bizkaibusStopsData as BizkaibusStopRaw[]).find(s => s.PARADA === stopId);
     if (!stop) return null;
-    
+
     return {
         id: stop.PARADA,
         name: stop.DENOMINACION,
@@ -198,4 +198,22 @@ export function getBizkaibusStopById(stopId: string): BizkaibusStop | null {
         lat: parseFloat(stop.LATITUD),
         lon: parseFloat(stop.LONGITUD)
     };
+}
+
+/**
+ * Get nearby Bizkaibus stops
+ */
+export function getNearbyBizkaibusStops(lat: number, lon: number, radiusKm: number = 0.5): BizkaibusStop[] {
+    const stops = getAllBizkaibusStops();
+    return stops.filter(stop => {
+        const R = 6371; // Earth radius in km
+        const dLat = (stop.lat - lat) * Math.PI / 180;
+        const dLon = (stop.lon - lon) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat * Math.PI / 180) * Math.cos(stop.lat * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const d = R * c;
+        return d <= radiusKm;
+    }).slice(0, 10);
 }

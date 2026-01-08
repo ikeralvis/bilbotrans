@@ -13,6 +13,24 @@ interface Stop extends SearchResult {
     agency: 'metro' | 'bilbobus' | 'bizkaibus';
 }
 
+interface MetroScheduleResponse {
+    trains: Array<{
+        departure: string;
+        arrival: string;
+        duration: number;
+        line: string;
+        transfer: boolean;
+        transferStation?: string;
+    }>;
+    trip: {
+        fromStation: { code: string; name: string };
+        toStation: { code: string; name: string };
+        duration: number;
+        line: string;
+        transfer: boolean;
+    };
+}
+
 export function RouteContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -71,8 +89,43 @@ export function RouteContent() {
             setOriginStop(originWithAgency);
             setDestStop(destWithAgency);
 
-            // Cargar llegadas en tiempo real para Metro
-            if (originAgency === 'metro') {
+            // Cargar información según el tipo de transporte
+            if (originAgency === 'metro' && destAgency === 'metro') {
+                console.log('[Route] Loading metro schedule for route:', originId, '->', destId);
+                try {
+                    const response = await fetch(`/api/metro/schedule?origin=${originId}&dest=${destId}`);
+                    if (response.ok) {
+                        const scheduleData = await response.json();
+                        console.log('[Route] Schedule response:', scheduleData);
+                        if (scheduleData.trains && scheduleData.trains.length > 0) {
+                            // Convertir datos del endpoint real-time a formato MetroArrival
+                            const convertedArrivals: MetroArrival[] = scheduleData.trains.map((train: any, idx: number) => {
+                                const etaMinutes = train.estimated ?? (train.Minutes || 0);
+                                return {
+                                    lineId: scheduleData.trip?.line || train.line || 'L1',
+                                    destination: destWithAgency.name,
+                                    etaMinutes: etaMinutes,
+                                    etaDisplay: `${etaMinutes} min`,
+                                    platform: `${train.direction || 'Andén desconocido'}`,
+                                    wagons: train.wagons || 0,
+                                    time: train.time || train.timeRounded || ''
+                                };
+                            });
+                            setArrivals(convertedArrivals);
+                        }
+                    } else {
+                        // Fallback: cargar llegadas de la estación de origen
+                        const metroArrivals = await getMetroArrivalsByStop(originId);
+                        setArrivals(metroArrivals);
+                    }
+                } catch (error_) {
+                    console.log('[Route] Schedule endpoint failed, using realtime arrivals:', error_);
+                    const metroArrivals = await getMetroArrivalsByStop(originId);
+                    setArrivals(metroArrivals);
+                }
+                setLastUpdate(new Date());
+            } else if (originAgency === 'metro') {
+                // Si solo origen es metro, mostrar llegadas de esa estación
                 console.log('[Route] Loading metro arrivals for:', originId);
                 const metroArrivals = await getMetroArrivalsByStop(originId);
                 console.log('[Route] Got metro arrivals:', metroArrivals.length);
@@ -150,9 +203,9 @@ export function RouteContent() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+            <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-orange-500 to-red-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
                         <Train className="w-8 h-8 text-white" />
                     </div>
                     <p className="text-slate-600 font-medium">Cargando ruta...</p>
@@ -163,7 +216,7 @@ export function RouteContent() {
 
     if (error || !originStop || !destStop) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+            <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100">
                 <div className="max-w-2xl mx-auto p-4 pt-8 flex flex-col items-center justify-center min-h-screen gap-4">
                     <AlertCircle className="w-12 h-12 text-red-500" />
                     <h1 className="text-2xl font-bold text-slate-900">{error || 'Error'}</h1>
@@ -181,12 +234,12 @@ export function RouteContent() {
     const isMetro = originStop.agency === 'metro';
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 pb-24">
+        <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 pb-24">
             {/* Header */}
             <div className={`text-white ${
                 isMetro 
-                    ? 'bg-gradient-to-br from-orange-500 via-orange-600 to-red-600' 
-                    : 'bg-gradient-to-br from-green-500 via-green-600 to-emerald-600'
+                    ? 'bg-linear-to-br from-orange-500 via-orange-600 to-red-600' 
+                    : 'bg-linear-to-br from-green-500 via-green-600 to-emerald-600'
             }`}>
                 <div className="max-w-2xl mx-auto px-4 py-4">
                     <div className="flex items-center justify-between mb-4">

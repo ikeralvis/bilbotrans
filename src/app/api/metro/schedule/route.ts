@@ -28,10 +28,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const origin = searchParams.get('origin');
     const destination = searchParams.get('dest');
-    const date = searchParams.get('date'); // DD-MM-YYYY
-    const hourStart = searchParams.get('hourStart') || '6';
-    const hourEnd = searchParams.get('hourEnd') || '23';
-    const lang = searchParams.get('lang') || 'es';
 
     if (!origin || !destination) {
         return NextResponse.json(
@@ -40,14 +36,9 @@ export async function GET(request: Request) {
         );
     }
 
-    // Formato fecha actual si no se proporciona
-    const today = new Date();
-    const formattedDate = date || `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
-
-    const language = lang === 'eu' ? 'eu' : 'es';
-
     try {
-        const url = `https://api.metrobilbao.eus/metro/obtain-schedule-of-trip/${origin}/${destination}/${hourStart}/${hourEnd}/${formattedDate}/${language}`;
+        // Usar el endpoint real-time que devuelve los itinerarios correctos
+        const url = `https://api.metrobilbao.eus/metro/real-time/${origin}/${destination}`;
         
         const response = await fetch(url, { next: { revalidate: 60 } });
 

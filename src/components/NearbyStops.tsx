@@ -7,7 +7,7 @@ interface NearbyStopsProps {
     stops: Array<{
         id: string;
         name: string;
-        agency: 'metro' | 'bilbobus';
+        agency: 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe';
         lat: number;
         lon: number;
     }>;
@@ -67,7 +67,12 @@ export function NearbyStops({ stops, onSelectStop, isLoading = false }: NearbySt
                 <div className="space-y-2">
                     {sortedStops.map((stop, idx) => {
                         const distance = location ? calculateDistance(stop.lat, stop.lon) : null;
-                        const agencyColor = stop.agency === 'metro' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600';
+
+                        let agencyColor = 'bg-slate-100 text-slate-600';
+                        if (stop.agency === 'metro') agencyColor = 'bg-orange-100 text-orange-600';
+                        else if (stop.agency === 'bilbobus') agencyColor = 'bg-red-100 text-red-600';
+                        else if (stop.agency === 'bizkaibus') agencyColor = 'bg-green-100 text-green-600';
+                        else if (stop.agency === 'renfe') agencyColor = 'bg-purple-100 text-purple-600';
 
                         return (
                             <button

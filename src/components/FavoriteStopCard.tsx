@@ -1,12 +1,13 @@
-import { AlertCircle, MapPin, Train } from 'lucide-react';
+import { AlertCircle, MapPin, Train, Bus } from 'lucide-react';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { useEffect, useState } from 'react';
 import { getMetroArrivalsByStop } from '@/lib/metro';
+import { getBizkaibusArrivals } from '@/lib/bizkaibus';
 
 interface FavoriteStopCardProps {
     readonly stopId: string;
     readonly name: string;
-    readonly agency: 'metro' | 'bilbobus';
+    readonly agency: 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe';
     readonly lat?: number;
     readonly lon?: number;
     readonly onTap?: () => void;
@@ -24,7 +25,7 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
     const [trainsL2, setTrainsL2] = useState<TrainInfo[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    
+
     const distance = lat && lon && location ? calculateDistance(lat, lon) : null;
 
     useEffect(() => {
@@ -36,10 +37,10 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                     const arrivals = await getMetroArrivalsByStop(stopId);
                     const l1 = arrivals.filter(a => a.lineId.includes('L1')).slice(0, 2);
                     const l2 = arrivals.filter(a => a.lineId.includes('L2')).slice(0, 2);
-                    
+
                     setTrainsL1(l1.map(a => ({ destination: a.destination, etaMinutes: a.etaMinutes, lineId: a.lineId })));
                     setTrainsL2(l2.map(a => ({ destination: a.destination, etaMinutes: a.etaMinutes, lineId: a.lineId })));
-                    
+
                     if (l1.length === 0 && l2.length === 0) setError('Sin servicio');
                 } catch {
                     setError('Error');
@@ -47,12 +48,30 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                 setIsLoading(false);
             };
             loadTrains();
+        } else if (agency === 'bizkaibus') {
+            const loadBizkaibus = async () => {
+                setIsLoading(true);
+                setError(null);
+                try {
+                    const arrivals = await getBizkaibusArrivals(stopId);
+                    const list = arrivals.slice(0, 4).map(a => ({
+                        destination: a.destination,
+                        etaMinutes: a.minutes,
+                        lineId: a.line
+                    }));
+                    setTrainsL1(list);
+                    if (list.length === 0) setError('Sin servicio');
+                } catch {
+                    setError('Error');
+                }
+                setIsLoading(false);
+            };
+            loadBizkaibus();
         }
     }, [stopId, agency]);
 
     // Función para extraer el nombre de línea limpio (L1, L2, L3)
     const getCleanLineId = (lineId: string): string => {
-        // Si contiene L1, L2 o L3, extraer solo eso
         const regex = /L[1-3]/;
         const match = regex.exec(lineId);
         return match ? match[0] : lineId;
@@ -66,7 +85,7 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                 </span>
                 <span className="text-slate-600 truncate">{train.destination}</span>
             </div>
-            <span className={`font-bold shrink-0 ${train.etaMinutes <= 2 ? 'text-red-500' : 'text-slate-800'}`}>
+            <span className={`font-bold shrink-0 ${train.etaMinutes <= 5 ? 'text-red-500' : 'text-slate-800'}`}>
                 {train.etaMinutes <= 0 ? 'Aquí' : `${train.etaMinutes}'`}
             </span>
         </div>
@@ -81,7 +100,7 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                 </div>
             );
         }
-        
+
         if (error) {
             return (
                 <div className="flex items-center gap-1 text-xs text-slate-500">
@@ -90,9 +109,21 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                 </div>
             );
         }
-        
-        if (trainsL1.length === 0 && trainsL2.length === 0) {
+
+        if (trainsL1.length === 0 && trainsL2.length === 0 && agency !== 'renfe') {
             return null;
+        }
+
+        if (agency === 'bizkaibus') {
+            return (
+                <div className="space-y-1">
+                    {trainsL1.map((train, idx) => (
+                        <div key={`biz-${train.destination}-${idx}`}>
+                            {renderTrainRow(train, 'bg-green-600')}
+                        </div>
+                    ))}
+                </div>
+            );
         }
 
         return (
@@ -107,7 +138,7 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                         ))}
                     </div>
                 )}
-                
+
                 {/* Línea 2 */}
                 {trainsL2.length > 0 && (
                     <div className="space-y-1">
@@ -122,22 +153,41 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
         );
     };
 
+    const getAgencyIcon = () => {
+        if (agency === 'metro') return <Train className="w-3.5 h-3.5 text-orange-600" />;
+        if (agency === 'bizkaibus') return <Bus className="w-3.5 h-3.5 text-green-600" />;
+        if (agency === 'renfe') return <Train className="w-3.5 h-3.5 text-purple-600" />;
+        return <Bus className="w-3.5 h-3.5 text-red-600" />; // Bilbobus
+    };
+
+    const getAgencyBg = () => {
+        if (agency === 'metro') return 'bg-orange-100';
+        if (agency === 'bizkaibus') return 'bg-green-100';
+        if (agency === 'renfe') return 'bg-purple-100';
+        return 'bg-red-100';
+    };
+
+    const getHoverBorder = () => {
+        if (agency === 'metro') return 'hover:border-orange-300';
+        if (agency === 'bizkaibus') return 'hover:border-green-300';
+        if (agency === 'renfe') return 'hover:border-purple-300';
+        return 'hover:border-red-300';
+    };
+
     return (
         <button
             onClick={onTap}
-            className="w-full group p-3 rounded-xl bg-white border border-slate-200 
-                     hover:border-orange-300 hover:shadow-sm active:scale-[0.98] 
-                     transition-all duration-150 text-left"
+            className={`w-full group p-3 rounded-xl bg-white border border-slate-200 
+                     ${getHoverBorder()} hover:shadow-sm active:scale-[0.98] 
+                     transition-all duration-150 text-left`}
         >
             {/* Header */}
             <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                        agency === 'metro' ? 'bg-orange-100' : 'bg-red-100'
-                    }`}>
-                        <Train className={`w-3.5 h-3.5 ${agency === 'metro' ? 'text-orange-600' : 'text-red-600'}`} />
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${getAgencyBg()}`}>
+                        {getAgencyIcon()}
                     </div>
-                    <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-orange-600 transition-colors">
+                    <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-slate-700 transition-colors">
                         {name}
                     </h3>
                 </div>

@@ -9,6 +9,8 @@ export const translations = {
         // Header
         appName: 'BilboTrans',
         realtimeSchedules: 'Horarios en tiempo real',
+        account: 'Mi cuenta',
+        noFavorites: 'No tienes paradas favoritas',
         
         // Navigation
         favorites: 'Favoritos',
@@ -63,6 +65,8 @@ export const translations = {
         // Header
         appName: 'BilboTrans',
         realtimeSchedules: 'Errealeko ordutegiak',
+        account: 'Nire kontua',
+        noFavorites: 'Ez dituzu gogoko paradak',
         
         // Navigation
         favorites: 'Gogokoak',
@@ -117,6 +121,8 @@ export const translations = {
         // Header
         appName: 'BilboTrans',
         realtimeSchedules: 'Real-time schedules',
+        account: 'My account',
+        noFavorites: 'You have no favorite stops',
         
         // Navigation
         favorites: 'Favorites',

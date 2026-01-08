@@ -60,21 +60,17 @@ export async function GET(request: NextRequest) {
             )
             .limit(50);
 
-        // Deduplicar por (stopId + agency) y limpiar plataformas del ID
+        // Deduplicar por (stopId + agency)
         const seen = new Set<string>();
         const mapped = results
-            .map(r => {
-                // Limpiar el ID quitando la plataforma final (ej: "1234567891" -> "123456789")
-                const cleanId = r.id.replace(/[12]$/, '');
-                return {
-                    id: cleanId, // Retornar ID limpio sin plataforma
-                    name: r.name,
-                    agency: r.agency,
-                    lat: r.lat || 0,
-                    lon: r.lon || 0,
-                    metadata: r.metadata
-                };
-            })
+            .map(r => ({
+                id: r.id, // Retornar ID tal cual (es el código de estación)
+                name: r.name,
+                agency: r.agency,
+                lat: r.lat || 0,
+                lon: r.lon || 0,
+                metadata: r.metadata
+            }))
             .filter(r => {
                 const key = `${r.id}_${r.agency}`;
                 if (seen.has(key)) return false;

@@ -6,9 +6,12 @@ export interface Favorite {
     id: string;
     stopId: string;
     name: string;
-    agency: 'metro' | 'bilbobus';
+    agency: 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe';
     lat?: number;
     lon?: number;
+    // Optional metadata
+    lineId?: string;
+    destination?: string;
     createdAt: number;
 }
 
