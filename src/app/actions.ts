@@ -1,14 +1,15 @@
 
 'use server';
 
-import { db } from '@/lib/db';
+import { db } from '@/lib/shared/db';
 import { stops } from '@/db/schema';
 import { ilike, or, eq, and, gte, lte } from 'drizzle-orm';
+import * as bilbobus from '@/lib/bilbobus/api';
 
 export interface SearchResult {
     id: string;
     name: string;
-    agency: string;
+    agency: 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe';
     lat?: number;
     lon?: number;
     metadata: any;
@@ -71,7 +72,7 @@ export async function getStopDetails(stopId: string, agency: string): Promise<Se
         const mapped: SearchResult = {
             id: r.id,
             name: r.name,
-            agency: r.agency,
+            agency: r.agency as any,
             lat: r.lat || undefined,
             lon: r.lon || undefined,
             metadata: r.metadata
@@ -115,10 +116,10 @@ export async function getNearbyStops(
             )
             .limit(20);
 
-        const mapped = results.map(r => ({
+        const mapped: SearchResult[] = results.map(r => ({
             id: r.id,
             name: r.name,
-            agency: r.agency,
+            agency: r.agency as any,
             lat: r.lat || 0,
             lon: r.lon || 0,
             metadata: r.metadata
@@ -143,19 +144,18 @@ export async function getAllStops(): Promise<SearchResult[]> {
     try {
         const results = await db.select()
             .from(stops)
-            .where(eq(stops.agency, 'metro'))
-            .limit(100);
+            .limit(300); // Fetch more stops
 
-        const mapped = results.map(r => ({
+        const mapped: SearchResult[] = results.map(r => ({
             id: r.id,
             name: r.name,
-            agency: r.agency as 'metro' | 'bilbobus',
+            agency: r.agency as any,
             lat: r.lat || 0,
             lon: r.lon || 0,
             metadata: r.metadata
         }));
 
-        setCache(cacheKey, mapped, 30 * 60 * 1000); // 30 minutos
+        setCache(cacheKey, mapped, 30 * 60 * 1000);
         return mapped;
     } catch (error) {
         console.error('Error getting all stops:', error);
@@ -205,4 +205,33 @@ export async function fetchRenfeSchedule(origin: string, destination: string, da
         console.error('Renfe fetch error:', error);
         return { ok: false, error: 'Failed to fetch schedule' };
     }
+}
+
+// Bilbobus Actions
+export async function getBilbobusArrivals(lineId: string) {
+    return await bilbobus.getBilbobusArrivals(lineId);
+}
+
+export async function getBilbobusArrivalsByStop(stopId: string) {
+    return await bilbobus.getBilbobusArrivalsByStop(stopId);
+}
+
+export async function getAllBilbobusLines() {
+    return bilbobus.getAllBilbobusLines();
+}
+
+export async function getBilbobusLineDetails(lineId: string) {
+    return bilbobus.getBilbobusLineDetails(lineId);
+}
+
+export async function searchBilbobusStops(query: string) {
+    return bilbobus.searchBilbobusStops(query);
+}
+
+export async function getBilbobusStop(stopId: string) {
+    return bilbobus.getBilbobusStop(stopId);
+}
+
+export async function getBilbobusStops(stopIds: string[]) {
+    return stopIds.map(id => bilbobus.getBilbobusStop(id)).filter(Boolean) as bilbobus.BilbobusStop[];
 }

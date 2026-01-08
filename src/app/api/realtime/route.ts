@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getMetroArrivalsByStop } from '@/lib/metro';
-import { getBilbobusRealtime } from '@/lib/bilbobus';
 
 export const dynamic = 'force-dynamic';
 

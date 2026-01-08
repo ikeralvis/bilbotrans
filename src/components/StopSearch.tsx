@@ -3,7 +3,7 @@
 import { Search, Loader2, Train, Bus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchStops, SearchResult } from '@/lib/stopSearch';
+import { searchStops, SearchResult } from '@/lib/shared/stopSearch';
 
 export function StopSearch() {
     const router = useRouter();
@@ -43,11 +43,11 @@ export function StopSearch() {
                 <input
                     type="text"
                     placeholder="Buscar parada..."
-                          className="w-full h-12 pl-11 pr-4 rounded-xl bg-slate-100 border border-transparent 
+                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-slate-100 border border-transparent 
                               focus:border-slate-300 focus:ring-1 focus:ring-slate-300 focus:bg-white
                               outline-none transition-all placeholder:text-slate-400 text-base font-medium
                               text-slate-900"
-                          style={{ fontSize: 16 }}
+                    style={{ fontSize: 16 }}
                     value={term}
                     onChange={(e) => setTerm(e.target.value)}
                     onFocus={() => term.length >= 2 && setIsOpen(true)}
@@ -87,8 +87,8 @@ export function StopSearch() {
                                        flex items-center gap-3"
                             >
                                 <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0
-                                           bg-orange-100" 
-                                     style={{backgroundColor: stop.agency === 'metro' ? '#fed7aa' : '#fee2e2'}}>
+                                           bg-orange-100"
+                                    style={{ backgroundColor: stop.agency === 'metro' ? '#fed7aa' : '#fee2e2' }}>
                                     {stop.agency === 'metro' ? (
                                         <Train className="w-4 h-4 text-orange-600" />
                                     ) : (

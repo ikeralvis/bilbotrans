@@ -1,0 +1,450 @@
+{
+    "L1": {
+        "id": "L1",
+        "name": "Etxebarri - Plentzia",
+        "color": "#f97316",
+        "stations": [
+            {
+                "code": "ETX",
+                "name": "Etxebarri",
+                "lat": 43.24387,
+                "lon": -2.89668,
+                "order": 0
+            },
+            {
+                "code": "BOL",
+                "name": "Bolueta",
+                "lat": 43.247,
+                "lon": -2.90573,
+                "order": 1
+            },
+            {
+                "code": "BAS",
+                "name": "Basarrate",
+                "lat": 43.25077,
+                "lon": -2.91057,
+                "order": 2
+            },
+            {
+                "code": "SAN",
+                "name": "Santutxu",
+                "lat": 43.25383,
+                "lon": -2.91343,
+                "order": 3
+            },
+            {
+                "code": "CAV",
+                "name": "Zazpikaleak/Casco Viejo",
+                "lat": 43.26024,
+                "lon": -2.91987,
+                "order": 4
+            },
+            {
+                "code": "ABA",
+                "name": "Abando",
+                "lat": 43.26144,
+                "lon": -2.9282,
+                "order": 5
+            },
+            {
+                "code": "MOY",
+                "name": "Moyua",
+                "lat": 43.26267,
+                "lon": -2.93377,
+                "order": 6
+            },
+            {
+                "code": "IND",
+                "name": "Indautxu",
+                "lat": 43.26125,
+                "lon": -2.94234,
+                "order": 7
+            },
+            {
+                "code": "SAM",
+                "name": "Santimami/San Mamés",
+                "lat": 43.26254,
+                "lon": -2.94819,
+                "order": 8
+            },
+            {
+                "code": "DEU",
+                "name": "Deustu",
+                "lat": 43.27182,
+                "lon": -2.94947,
+                "order": 9
+            },
+            {
+                "code": "SAR",
+                "name": "Sarriko",
+                "lat": 43.27441,
+                "lon": -2.95807,
+                "order": 10
+            },
+            {
+                "code": "SIN",
+                "name": "San Ignazio",
+                "lat": 43.28137,
+                "lon": -2.96265,
+                "order": 11
+            },
+            {
+                "code": "LUT",
+                "name": "Lutxana",
+                "lat": 43.29113,
+                "lon": -2.97005,
+                "order": 12
+            },
+            {
+                "code": "ERA",
+                "name": "Erandio",
+                "lat": 43.30379,
+                "lon": -2.97447,
+                "order": 13
+            },
+            {
+                "code": "AST",
+                "name": "Astrabudua",
+                "lat": 43.31448,
+                "lon": -2.98677,
+                "order": 14
+            },
+            {
+                "code": "LEI",
+                "name": "Leioa",
+                "lat": 43.31799,
+                "lon": -2.99203,
+                "order": 15
+            },
+            {
+                "code": "LAM",
+                "name": "Lamiako",
+                "lat": 43.32142,
+                "lon": -3.00159,
+                "order": 16
+            },
+            {
+                "code": "ARE",
+                "name": "Areeta",
+                "lat": 43.32651,
+                "lon": -3.0104,
+                "order": 17
+            },
+            {
+                "code": "GOB",
+                "name": "Gobela",
+                "lat": 43.3336,
+                "lon": -3.00704,
+                "order": 18
+            },
+            {
+                "code": "NEG",
+                "name": "Neguri",
+                "lat": 43.34035,
+                "lon": -3.00631,
+                "order": 19
+            },
+            {
+                "code": "AIB",
+                "name": "Aiboa",
+                "lat": 43.34359,
+                "lon": -3.00288,
+                "order": 20
+            },
+            {
+                "code": "ALG",
+                "name": "Algorta",
+                "lat": 43.34988,
+                "lon": -3.0091,
+                "order": 21
+            },
+            {
+                "code": "BID",
+                "name": "Bidezabal",
+                "lat": 43.35694,
+                "lon": -3.01166,
+                "order": 22
+            },
+            {
+                "code": "IBB",
+                "name": "Ibarbengoa",
+                "lat": 43.36317,
+                "lon": -3.00667,
+                "order": 23
+            },
+            {
+                "code": "BER",
+                "name": "Berango",
+                "lat": 43.36676,
+                "lon": -2.99942,
+                "order": 24
+            },
+            {
+                "code": "LAR",
+                "name": "Larrabasterra",
+                "lat": 43.37554,
+                "lon": -2.9916,
+                "order": 25
+            },
+            {
+                "code": "SOP",
+                "name": "Sopela",
+                "lat": 43.38017,
+                "lon": -2.97879,
+                "order": 26
+            },
+            {
+                "code": "URD",
+                "name": "Urduliz",
+                "lat": 43.37865,
+                "lon": -2.95905,
+                "order": 27
+            },
+            {
+                "code": "PLE",
+                "name": "Plentzia",
+                "lat": 43.40183,
+                "lon": -2.9464,
+                "order": 28
+            }
+        ]
+    },
+    "L2": {
+        "id": "L2",
+        "name": "Basauri - Kabiezes",
+        "color": "#16a34a",
+        "stations": [
+            {
+                "code": "BSR",
+                "name": "Basauri",
+                "lat": 43.23656,
+                "lon": -2.89457,
+                "order": 0
+            },
+            {
+                "code": "ARZ",
+                "name": "Ariz",
+                "lat": 43.23767,
+                "lon": -2.88255,
+                "order": 1
+            },
+            {
+                "code": "ETX",
+                "name": "Etxebarri",
+                "lat": 43.24387,
+                "lon": -2.89668,
+                "order": 2
+            },
+            {
+                "code": "BOL",
+                "name": "Bolueta",
+                "lat": 43.247,
+                "lon": -2.90573,
+                "order": 3
+            },
+            {
+                "code": "BAS",
+                "name": "Basarrate",
+                "lat": 43.25077,
+                "lon": -2.91057,
+                "order": 4
+            },
+            {
+                "code": "SAN",
+                "name": "Santutxu",
+                "lat": 43.25383,
+                "lon": -2.91343,
+                "order": 5
+            },
+            {
+                "code": "CAV",
+                "name": "Zazpikaleak/Casco Viejo",
+                "lat": 43.26024,
+                "lon": -2.91987,
+                "order": 6
+            },
+            {
+                "code": "ABA",
+                "name": "Abando",
+                "lat": 43.26144,
+                "lon": -2.9282,
+                "order": 7
+            },
+            {
+                "code": "MOY",
+                "name": "Moyua",
+                "lat": 43.26267,
+                "lon": -2.93377,
+                "order": 8
+            },
+            {
+                "code": "IND",
+                "name": "Indautxu",
+                "lat": 43.26125,
+                "lon": -2.94234,
+                "order": 9
+            },
+            {
+                "code": "SAM",
+                "name": "Santimami/San Mamés",
+                "lat": 43.26254,
+                "lon": -2.94819,
+                "order": 10
+            },
+            {
+                "code": "DEU",
+                "name": "Deustu",
+                "lat": 43.27182,
+                "lon": -2.94947,
+                "order": 11
+            },
+            {
+                "code": "SAR",
+                "name": "Sarriko",
+                "lat": 43.27441,
+                "lon": -2.95807,
+                "order": 12
+            },
+            {
+                "code": "SIN",
+                "name": "San Ignazio",
+                "lat": 43.28137,
+                "lon": -2.96265,
+                "order": 13
+            },
+            {
+                "code": "GUR",
+                "name": "Gurutzeta/Cruces",
+                "lat": 43.2832,
+                "lon": -2.98296,
+                "order": 14
+            },
+            {
+                "code": "ANS",
+                "name": "Ansio",
+                "lat": 43.28975,
+                "lon": -2.98699,
+                "order": 15
+            },
+            {
+                "code": "BAR",
+                "name": "Barakaldo",
+                "lat": 43.29531,
+                "lon": -2.9889,
+                "order": 16
+            },
+            {
+                "code": "BAG",
+                "name": "Bagatza",
+                "lat": 43.29849,
+                "lon": -2.99262,
+                "order": 17
+            },
+            {
+                "code": "URB",
+                "name": "Urbinaga",
+                "lat": 43.30593,
+                "lon": -2.99238,
+                "order": 18
+            },
+            {
+                "code": "SES",
+                "name": "Sestao",
+                "lat": 43.30934,
+                "lon": -3.00663,
+                "order": 19
+            },
+            {
+                "code": "ABT",
+                "name": "Abatxolo",
+                "lat": 43.31376,
+                "lon": -3.01251,
+                "order": 20
+            },
+            {
+                "code": "POR",
+                "name": "Portugalete",
+                "lat": 43.31795,
+                "lon": -3.02144,
+                "order": 21
+            },
+            {
+                "code": "PEN",
+                "name": "Peñota",
+                "lat": 43.322,
+                "lon": -3.02593,
+                "order": 22
+            },
+            {
+                "code": "STZ",
+                "name": "Santurtzi",
+                "lat": 43.32923,
+                "lon": -3.03426,
+                "order": 23
+            },
+            {
+                "code": "KAB",
+                "name": "Kabiezes",
+                "lat": 43.32231,
+                "lon": -3.03661,
+                "order": 24
+            }
+        ]
+    },
+    "L3": {
+        "id": "L3",
+        "name": "Matiko - Kukullaga",
+        "color": "#0ea5e9",
+        "stations": [
+            {
+                "code": "ZZA",
+                "name": "Matiko",
+                "lat": 43.26892203749174,
+                "lon": -2.9249887400808756,
+                "order": 0
+            },
+            {
+                "code": "ZZB",
+                "name": "Uribarri",
+                "lat": 43.26657888522708,
+                "lon": -2.9181073021177335,
+                "order": 1
+            },
+            {
+                "code": "CAV",
+                "name": "Zazpikaleak/Casco Viejo",
+                "lat": 43.26024,
+                "lon": -2.91987,
+                "order": 2
+            },
+            {
+                "code": "ZZD",
+                "name": "Zurbaranbarri",
+                "lat": 43.264828315419386,
+                "lon": -2.9134497686574696,
+                "order": 3
+            },
+            {
+                "code": "ZZE",
+                "name": "Txurdinaga",
+                "lat": 43.2579403922566,
+                "lon": -2.9067357582337303,
+                "order": 4
+            },
+            {
+                "code": "ZZF",
+                "name": "Otxarkoaga",
+                "lat": 43.25818960120815,
+                "lon": -2.8980826688736525,
+                "order": 5
+            },
+            {
+                "code": "ZZG",
+                "name": "Kukullaga",
+                "lat": 43.25112761711957,
+                "lon": -2.889805502632,
+                "order": 6
+            }
+        ]
+    }
+}

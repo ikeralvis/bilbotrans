@@ -1,8 +1,8 @@
 import { AlertCircle, MapPin, Train, Bus } from 'lucide-react';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { useEffect, useState } from 'react';
-import { getMetroArrivalsByStop } from '@/lib/metro';
-import { getBizkaibusArrivals } from '@/lib/bizkaibus';
+import { getMetroArrivalsByStop } from '@/lib/metro/api';
+import { getBizkaibusArrivals } from '@/lib/bizkaibus/api';
 
 interface FavoriteStopCardProps {
     readonly stopId: string;

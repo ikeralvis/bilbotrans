@@ -5,13 +5,7 @@ import { useGeolocation } from '@/context/GeolocationContext';
 import { useMemo } from 'react';
 import { MapPin, Loader2 } from 'lucide-react';
 
-interface StopLocation {
-    id: string;
-    name: string;
-    agency: 'metro' | 'bilbobus';
-    lat: number;
-    lon: number;
-}
+import { StopLocation } from '@/types/transport';
 
 interface StopsMapProps {
     readonly stops: StopLocation[];
@@ -61,7 +55,7 @@ export function StopsMap({ stops, selectedStopId, onSelectStop }: StopsMapProps)
                 )}
             </div>
 
-            <MapComponent 
+            <MapComponent
                 {...mapData}
                 onSelectStop={onSelectStop}
             />

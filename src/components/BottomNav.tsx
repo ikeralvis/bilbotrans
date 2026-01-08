@@ -15,37 +15,37 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-    { 
-        id: 'metro', 
-        label: 'Metro', 
-        icon: Train, 
-        color: 'text-orange-600', 
+    {
+        id: 'metro',
+        label: 'Metro',
+        icon: Train,
+        color: 'text-orange-600',
         bgColor: 'bg-orange-100',
-        available: true 
+        available: true
     },
-    { 
-        id: 'bizkaibus', 
-        label: 'Bizkaibus', 
-        icon: Bus, 
-        color: 'text-green-600', 
+    {
+        id: 'bizkaibus',
+        label: 'Bizkaibus',
+        icon: Bus,
+        color: 'text-green-600',
         bgColor: 'bg-green-100',
-        available: true 
+        available: true
     },
-    { 
-        id: 'bilbobus', 
-        label: 'Bilbobus', 
-        icon: Bus, 
-        color: 'text-red-600', 
+    {
+        id: 'bilbobus',
+        label: 'Bilbobus',
+        icon: Bus,
+        color: 'text-red-600',
         bgColor: 'bg-red-100',
-        available: false 
+        available: true
     },
-    { 
-        id: 'renfe', 
-        label: 'Renfe', 
-        icon: TrainFront, 
-        color: 'text-purple-600', 
+    {
+        id: 'renfe',
+        label: 'Renfe',
+        icon: TrainFront,
+        color: 'text-purple-600',
         bgColor: 'bg-purple-100',
-        available: false 
+        available: false
     },
 ];
 
@@ -62,7 +62,7 @@ export function BottomNav({ activeTransport, onTransportChange }: BottomNavProps
                     {navItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = activeTransport === item.id;
-                        
+
                         return (
                             <button
                                 key={item.id}
@@ -71,10 +71,10 @@ export function BottomNav({ activeTransport, onTransportChange }: BottomNavProps
                                 className={`
                                     flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl
                                     transition-all duration-200 min-w-18
-                                    ${isActive 
-                                        ? `${item.bgColor} ${item.color}` 
-                                        : item.available 
-                                            ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' 
+                                    ${isActive
+                                        ? `${item.bgColor} ${item.color}`
+                                        : item.available
+                                            ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                             : 'text-slate-300 cursor-not-allowed'
                                     }
                                 `}

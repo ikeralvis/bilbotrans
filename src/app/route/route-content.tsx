@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, AlertCircle, Clock, Heart, RefreshCw, Train, ArrowRightLeft, Info, Bus } from 'lucide-react';
-import { searchStops, SearchResult } from '@/lib/stopSearch';
-import { getMetroArrivalsByStop, MetroArrival } from '@/lib/metro';
+import { searchStops, SearchResult } from '@/lib/shared/stopSearch';
+import { getMetroArrivalsByStop, MetroArrival } from '@/lib/metro/api';
 import { useFavorites } from '@/context/FavoritesContext';
 
 interface Stop extends SearchResult {
@@ -80,7 +80,7 @@ export function RouteContent() {
             // Encontrar el resultado que coincida exactamente con el ID
             const origin = originResults.find(r => r.id === originId) || originResults[0];
             const dest = destResults.find(r => r.id === destId) || destResults[0];
-            
+
             const originWithAgency = { ...origin, agency: originAgency } as Stop;
             const destWithAgency = { ...dest, agency: destAgency } as Stop;
 
@@ -149,7 +149,7 @@ export function RouteContent() {
     const handleRefresh = async () => {
         if (!originStop) return;
         setIsRefreshing(true);
-        
+
         try {
             if (originStop.agency === 'metro') {
                 const metroArrivals = await getMetroArrivalsByStop(originStop.id);
@@ -166,7 +166,7 @@ export function RouteContent() {
     const toggleFavorite = (stop: Stop, e: React.MouseEvent) => {
         e.stopPropagation();
         const isFav = isFavorite(stop.id, stop.agency);
-        
+
         if (isFav) {
             removeFavorite(stop.id, stop.agency);
         } else {
@@ -236,11 +236,10 @@ export function RouteContent() {
     return (
         <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 pb-24">
             {/* Header */}
-            <div className={`text-white ${
-                isMetro 
-                    ? 'bg-linear-to-br from-orange-500 via-orange-600 to-red-600' 
+            <div className={`text-white ${isMetro
+                    ? 'bg-linear-to-br from-orange-500 via-orange-600 to-red-600'
                     : 'bg-linear-to-br from-green-500 via-green-600 to-emerald-600'
-            }`}>
+                }`}>
                 <div className="max-w-2xl mx-auto px-4 py-4">
                     <div className="flex items-center justify-between mb-4">
                         <button
@@ -316,16 +315,14 @@ export function RouteContent() {
 
                         <div className="divide-y divide-slate-100">
                             {arrivals.slice(0, 6).map((arrival, idx) => (
-                                <div 
+                                <div
                                     key={`${arrival.lineId}-${arrival.destination}-${idx}`}
-                                    className={`p-4 flex items-center justify-between ${
-                                        idx === 0 ? 'bg-orange-50' : 'hover:bg-slate-50'
-                                    } transition-colors`}
+                                    className={`p-4 flex items-center justify-between ${idx === 0 ? 'bg-orange-50' : 'hover:bg-slate-50'
+                                        } transition-colors`}
                                 >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${
-                                            idx === 0 ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'
-                                        }`}>
+                                        <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${idx === 0 ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'
+                                            }`}>
                                             <span className="text-lg font-bold leading-none">
                                                 {arrival.etaMinutes <= 0 ? '0' : arrival.etaMinutes}
                                             </span>
@@ -379,33 +376,29 @@ export function RouteContent() {
                 <div className="grid grid-cols-2 gap-3">
                     <button
                         onClick={(e) => toggleFavorite(originStop, e)}
-                        className={`p-4 rounded-xl border-2 transition-all text-left ${
-                            isFavorite(originStop.id, originStop.agency)
+                        className={`p-4 rounded-xl border-2 transition-all text-left ${isFavorite(originStop.id, originStop.agency)
                                 ? 'bg-orange-50 border-orange-500'
                                 : 'bg-white border-slate-200 hover:border-orange-300'
-                        }`}
+                            }`}
                     >
                         <Heart
-                            className={`w-4 h-4 mb-2 ${
-                                isFavorite(originStop.id, originStop.agency) ? 'fill-orange-500 text-orange-500' : 'text-slate-400'
-                            }`}
+                            className={`w-4 h-4 mb-2 ${isFavorite(originStop.id, originStop.agency) ? 'fill-orange-500 text-orange-500' : 'text-slate-400'
+                                }`}
                         />
                         <p className="text-xs text-slate-500">Origen</p>
                         <p className="text-sm font-semibold text-slate-900 truncate">{originStop.name}</p>
                     </button>
-                    
+
                     <button
                         onClick={(e) => toggleFavorite(destStop, e)}
-                        className={`p-4 rounded-xl border-2 transition-all text-left ${
-                            isFavorite(destStop.id, destStop.agency)
+                        className={`p-4 rounded-xl border-2 transition-all text-left ${isFavorite(destStop.id, destStop.agency)
                                 ? 'bg-orange-50 border-orange-500'
                                 : 'bg-white border-slate-200 hover:border-orange-300'
-                        }`}
+                            }`}
                     >
                         <Heart
-                            className={`w-4 h-4 mb-2 ${
-                                isFavorite(destStop.id, destStop.agency) ? 'fill-orange-500 text-orange-500' : 'text-slate-400'
-                            }`}
+                            className={`w-4 h-4 mb-2 ${isFavorite(destStop.id, destStop.agency) ? 'fill-orange-500 text-orange-500' : 'text-slate-400'
+                                }`}
                         />
                         <p className="text-xs text-slate-500">Destino</p>
                         <p className="text-sm font-semibold text-slate-900 truncate">{destStop.name}</p>
@@ -413,9 +406,8 @@ export function RouteContent() {
                 </div>
 
                 {/* Info */}
-                <div className={`rounded-2xl p-4 border ${
-                    isMetro ? 'bg-orange-50 border-orange-100' : 'bg-green-50 border-green-100'
-                }`}>
+                <div className={`rounded-2xl p-4 border ${isMetro ? 'bg-orange-50 border-orange-100' : 'bg-green-50 border-green-100'
+                    }`}>
                     <div className="flex items-start gap-3">
                         <Info className={`w-5 h-5 shrink-0 mt-0.5 ${isMetro ? 'text-orange-500' : 'text-green-500'}`} />
                         <div>
@@ -432,9 +424,8 @@ export function RouteContent() {
                 {/* Action Button */}
                 <button
                     onClick={() => router.push(`/station/${originStop.id}?agency=${originStop.agency}`)}
-                    className={`w-full py-3 px-4 text-white rounded-xl transition-colors font-medium ${
-                        isMetro ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'
-                    }`}
+                    className={`w-full py-3 px-4 text-white rounded-xl transition-colors font-medium ${isMetro ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'
+                        }`}
                 >
                     Ver detalles de {originStop.name}
                 </button>

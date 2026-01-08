@@ -4,12 +4,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Heart, ArrowLeft, Clock, Loader2, RefreshCw, MapPin, AlertCircle, DoorClosed, Moon, Icon } from 'lucide-react';
-import { getStopDetails } from '@/app/actions';
+import { getStopDetails, getBilbobusArrivalsByStop } from '@/app/actions';
 import { TransportCard } from '@/components/TransportCard';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { arrowsUpDownSquare } from '@lucide/lab';
-import { getMetroArrivalsByStop, type Exit } from '@/lib/metro';
+import { getMetroArrivalsByStop, type Exit } from '@/lib/metro/api';
 
 interface Schedule {
     lineId: string;
@@ -81,9 +81,15 @@ export default function StationPage() {
                     destinationExits: arrival.destinationExits
                 }));
                 setSchedules(transformed);
-            } else {
-                // TODO: Implementar API real de Bilbobus
-                setSchedules([]);
+            } else if (agency === 'bilbobus') {
+                const bbusArrivals = await getBilbobusArrivalsByStop(stopId);
+                const transformed: Schedule[] = bbusArrivals.map(arrival => ({
+                    lineId: arrival.lineId,
+                    destination: arrival.destination,
+                    etaMinutes: arrival.etaMinutes,
+                    agency: 'bilbobus'
+                }));
+                setSchedules(transformed);
             }
             setLastUpdate(new Date());
         } catch (err) {
@@ -177,12 +183,11 @@ export default function StationPage() {
                     </div>
 
                     <h1 className="text-2xl font-bold text-slate-900 mb-2">{stopDetails.name}</h1>
-                    
+
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                         <div
-                            className={`px-2 py-1 rounded-lg font-semibold text-white text-xs ${
-                                agency === 'metro' ? 'bg-orange-500' : 'bg-red-600'
-                            }`}
+                            className={`px-2 py-1 rounded-lg font-semibold text-white text-xs ${agency === 'metro' ? 'bg-orange-500' : 'bg-red-600'
+                                }`}
                         >
                             {agency === 'metro' ? 'Metro Bilbao' : 'Bilbobus'}
                         </div>
@@ -319,9 +324,9 @@ export default function StationPage() {
                     <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                         <h2 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <DoorClosed className="w-5 h-5 text-slate-700" />
-                            Salidas y Accesos 
+                            Salidas y Accesos
                         </h2>
-                        
+
                         {schedule1[0].originExits && schedule1[0].originExits.length > 0 && (
                             <div className="mb-4">
                                 <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">

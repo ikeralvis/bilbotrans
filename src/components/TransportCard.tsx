@@ -1,4 +1,4 @@
-import { AlertCircle, TramFront, Route } from 'lucide-react';
+import { TramFront, Route } from 'lucide-react';
 
 interface Exit {
     id: number;
@@ -8,7 +8,7 @@ interface Exit {
 }
 
 interface TransportCardProps {
-    agency: 'metro' | 'bizkaibus' | 'bilbobus';
+    agency: 'metro' | 'bizkaibus' | 'bilbobus' | 'renfe';
     lineId: string;
     destination: string;
     etaMinutes: number;
@@ -20,23 +20,24 @@ interface TransportCardProps {
     destinationExits?: Exit[];
 }
 
-export function TransportCard({ 
-    agency, 
-    lineId, 
-    destination, 
-    etaMinutes, 
-    color, 
-    vehicleId, 
+export function TransportCard({
+    agency,
+    lineId,
+    destination,
+    etaMinutes,
+    color,
+    vehicleId,
     wagons,
     duration,
     originExits,
     destinationExits
-}: TransportCardProps) {
+}: Readonly<TransportCardProps>) {
     // Agency config
     const config = {
         metro: { bg: 'bg-orange-500', text: 'text-white', label: 'Metro', dot: 'bg-orange-500' },
         bizkaibus: { bg: 'bg-green-600', text: 'text-white', label: 'Bizkaibus', dot: 'bg-green-600' },
-        bilbobus: { bg: 'bg-red-600', text: 'text-white', label: 'Bilbobus', dot: 'bg-red-600' }
+        bilbobus: { bg: 'bg-red-600', text: 'text-white', label: 'Bilbobus', dot: 'bg-red-600' },
+        renfe: { bg: 'bg-purple-600', text: 'text-white', label: 'Renfe', dot: 'bg-purple-600' }
     };
 
     const theme = config[agency];
@@ -45,9 +46,12 @@ export function TransportCard({
 
     // Extract clean line name (L1, L2, L3)
     const getLineDisplay = (line: string): string => {
-        const regex = /L[1-3]/;
-        const match = regex.exec(line);
-        return match ? match[0] : line.slice(0, 2);
+        if (agency === 'metro') {
+            const regex = /L[1-3]/;
+            const match = regex.exec(line);
+            return match ? match[0] : line.slice(0, 2);
+        }
+        return line.length > 4 ? line.slice(0, 3) : line;
     };
 
     // Line color based on L1/L2/L3
@@ -100,9 +104,8 @@ export function TransportCard({
                     </div>
                 ) : (
                     <>
-                        <div className={`text-lg font-bold transition-colors ${
-                            isImminent ? 'text-red-600' : 'text-slate-900'
-                        }`}>
+                        <div className={`text-lg font-bold transition-colors ${isImminent ? 'text-red-600' : 'text-slate-900'
+                            }`}>
                             {etaMinutes}
                         </div>
                         <span className="text-xs text-slate-400 font-medium">min</span>

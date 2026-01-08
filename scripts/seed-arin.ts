@@ -1,7 +1,7 @@
 
 import 'dotenv/config';
-import { db } from '../src/lib/db';
-import { stops } from '../src/db/schema';
+import { db } from '@/lib/shared/db';
+import { stops } from '@/db/schema';
 import * as fs from 'fs';
 import * as path from 'path';
 

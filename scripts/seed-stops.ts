@@ -1,5 +1,5 @@
 import 'dotenv/config'; // Must be first to load .env before other imports use it
-import { db } from '../src/lib/db';
+import { db } from '../src/db';
 import { stops } from '../src/db/schema';
 import { sql } from 'drizzle-orm';
 
