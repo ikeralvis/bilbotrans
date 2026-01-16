@@ -15,7 +15,7 @@ interface Schedule {
     lineId: string;
     destination: string;
     etaMinutes: number;
-    agency: 'metro' | 'bilbobus';
+    agency: 'metro' | 'bilbobus' | 'renfe';
     platform?: string;
     wagons?: number;
     duration?: number;
@@ -28,7 +28,7 @@ export default function StationPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const stopId = (params.id as string).replace(/[12]$/, ''); // Normalizar sin plataforma
-    const agency = (searchParams.get('agency') || 'metro') as 'metro' | 'bilbobus';
+    const agency = (searchParams.get('agency') || 'metro') as 'metro' | 'bilbobus' | 'renfe';
 
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
     const { calculateDistance, location } = useGeolocation();
