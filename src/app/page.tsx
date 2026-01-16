@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FavoriteStopCard } from '@/components/FavoriteStopCard';
 import { NearbyStops } from '@/components/NearbyStops';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -12,15 +12,20 @@ import { useGeolocation } from '@/context/GeolocationContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { getNearbyStops, searchBilbobusStops, getAllBilbobusLines } from '@/app/actions';
 import { searchStops } from '@/lib/shared/stopSearch';
-import { Heart, Navigation, Loader2, Search, ArrowUpDown, Train, X, Bus, Construction, MapPin, List } from 'lucide-react';
+import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, Construction, MapPin, List } from 'lucide-react';
 import { BilbobusLine, BilbobusStop } from '@/lib/bilbobus/api';
 import { StopLocation } from '@/types/transport';
+import { useLastSearch } from '@/hooks/useLastSearch';
+import dynamic from 'next/dynamic';
+
+const RenfeSection = dynamic(() => import('@/components/RenfeSection').then(m => m.RenfeSection), { ssr: false });
 
 
 // Local StopLocation interface removed in favor of shared type
 
 export default function Home() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { t } = useLanguage();
     const { favorites, isLoading: favLoading } = useFavorites();
     const { location, requestLocation, isLoading: geoLoading } = useGeolocation();
@@ -44,12 +49,43 @@ export default function Home() {
     const [bilbobusSearch, setBilbobusSearch] = useState('');
     const [bilbobusResults, setBilbobusResults] = useState<BilbobusStop[]>([]);
 
+    // Hooks para guardar las últimas búsquedas
+    const { lastSearch: lastMetroSearch, saveSearch: saveMetroSearch } = useLastSearch<{ origin: StopLocation, dest: StopLocation }>('metro');
+    const { lastSearch: lastBilbobusSearch, saveSearch: saveBilbobusSearch } = useLastSearch<string>('bilbobus');
+
+    // Handle URL tab parameter to set active transport
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab && ['metro', 'bilbobus', 'bizkaibus', 'renfe'].includes(tab)) {
+            setActiveTransport(tab as TransportType);
+        }
+    }, [searchParams]);
+
+    // Pre-fill Metro from last search
+    useEffect(() => {
+        if (lastMetroSearch && activeTransport === 'metro') {
+            if (!selectedOrigin && !selectedDest && origin === '' && destination === '') {
+                setSelectedOrigin(lastMetroSearch.origin);
+                setOrigin(lastMetroSearch.origin.name);
+                setSelectedDest(lastMetroSearch.dest);
+                setDestination(lastMetroSearch.dest.name);
+            }
+        }
+    }, [lastMetroSearch, activeTransport, selectedOrigin, selectedDest, origin, destination]);
+
+    // Pre-fill Bilbobus from last search
+    useEffect(() => {
+        if (lastBilbobusSearch && activeTransport === 'bilbobus' && bilbobusSearch === '') {
+            setBilbobusSearch(lastBilbobusSearch);
+        }
+    }, [lastBilbobusSearch, activeTransport, bilbobusSearch]);
+
     // Load Bilbobus lines
     useEffect(() => {
         const loadLines = async () => {
             try {
                 const lines = await getAllBilbobusLines();
-                setBilbobusLines(lines.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })));
+                setBilbobusLines([...lines].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })));
             } catch (err) {
                 console.error('Error loading Bilbobus lines:', err);
             }
@@ -80,12 +116,16 @@ export default function Home() {
         }
     }, [location]);
 
-    // Buscar origen
+    // Buscar origen - solo paradas de metro en búsqueda de metro
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
             if (origin.length >= 2 && !selectedOrigin) {
                 const data = await searchStops(origin);
-                setOriginResults(data.map(r => ({
+                // Filtrar solo paradas de metro cuando estamos en tab de metro
+                const metroOnly = activeTransport === 'metro' 
+                    ? data.filter(r => r.agency === 'metro')
+                    : data;
+                setOriginResults(metroOnly.map(r => ({
                     id: r.id,
                     name: r.name,
                     agency: r.agency as any,
@@ -99,14 +139,18 @@ export default function Home() {
             }
         }, 300);
         return () => clearTimeout(delayDebounceFn);
-    }, [origin, selectedOrigin]);
+    }, [origin, selectedOrigin, activeTransport]);
 
-    // Buscar destino
+    // Buscar destino - solo paradas de metro en búsqueda de metro
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
             if (destination.length >= 2 && !selectedDest) {
                 const data = await searchStops(destination);
-                setDestResults(data.map(r => ({
+                // Filtrar solo paradas de metro cuando estamos en tab de metro
+                const metroOnly = activeTransport === 'metro' 
+                    ? data.filter(r => r.agency === 'metro')
+                    : data;
+                setDestResults(metroOnly.map(r => ({
                     id: r.id,
                     name: r.name,
                     agency: r.agency as any,
@@ -120,7 +164,7 @@ export default function Home() {
             }
         }, 300);
         return () => clearTimeout(delayDebounceFn);
-    }, [destination, selectedDest]);
+    }, [destination, selectedDest, activeTransport]);
 
     // Buscar paradas Bilbobus
     useEffect(() => {
@@ -137,14 +181,31 @@ export default function Home() {
 
     // Cargar llegadas de Bizkaibus cuando se selecciona una parada
     const handleStopSelect = useCallback((stopId: string, agency: string) => {
+        if (agency === 'bilbobus' && bilbobusSearch) {
+            saveBilbobusSearch(bilbobusSearch);
+        }
         router.push(`/station/${stopId}?agency=${agency}`);
-    }, [router]);
+    }, [router, bilbobusSearch, saveBilbobusSearch]);
+
+    // Pre-fill Metro from last search
+    useEffect(() => {
+        if (lastMetroSearch && activeTransport === 'metro') {
+            if (!selectedOrigin && !selectedDest && origin === '' && destination === '') {
+                setSelectedOrigin(lastMetroSearch.origin);
+                setOrigin(lastMetroSearch.origin.name);
+                setSelectedDest(lastMetroSearch.dest);
+                setDestination(lastMetroSearch.dest.name);
+            }
+        }
+    }, [lastMetroSearch, activeTransport, selectedOrigin, selectedDest, origin, destination]);
 
     const handleSearch = useCallback(() => {
         if (selectedOrigin && selectedDest) {
+            // Guardar búsqueda para la próxima vez
+            saveMetroSearch({ origin: selectedOrigin, dest: selectedDest });
             router.push(`/route?origin=${selectedOrigin.id}&originAgency=${selectedOrigin.agency}&dest=${selectedDest.id}&destAgency=${selectedDest.agency}`);
         }
-    }, [selectedOrigin, selectedDest, router]);
+    }, [selectedOrigin, selectedDest, router, saveMetroSearch]);
 
     const handleSwap = useCallback(() => {
         const temp = selectedOrigin;
@@ -183,28 +244,13 @@ export default function Home() {
             <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-slate-900 truncate">{stop.name}</div>
                 <div className="text-xs text-slate-500">
-                    {stop.agency === 'metro' ? 'Metro Bilbao' : stop.agency === 'bilbobus' ? 'Bilbobus' : stop.agency === 'bizkaibus' ? 'Bizkaibus' : 'Renfe'}
+                    {stop.agency === 'metro' && 'Metro Bilbao'}
+                    {stop.agency === 'bilbobus' && 'Bilbobus'}
+                    {stop.agency === 'bizkaibus' && 'Bizkaibus'}
+                    {stop.agency === 'renfe' && 'Renfe'}
                 </div>
             </div>
         </button>
-    );
-
-    // Render coming soon placeholder for other transports
-    const renderComingSoon = (transportName: string, color: string) => (
-        <div className="flex-1 flex items-center justify-center">
-            <div className="text-center p-8">
-                <div className={`w-20 h-20 rounded-2xl ${color} mx-auto mb-4 flex items-center justify-center`}>
-                    <Construction className="w-10 h-10 text-white" />
-                </div>
-                <h2 className="text-xl font-bold text-slate-800 mb-2">{transportName}</h2>
-                <p className="text-slate-500 text-sm max-w-xs mx-auto">
-                    Estamos trabajando para traerte información en tiempo real de {transportName}
-                </p>
-                <span className="inline-block mt-4 px-4 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-medium">
-                    Próximamente
-                </span>
-            </div>
-        </div>
     );
 
     const renderFavorites = () => {
@@ -269,9 +315,9 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
-            {/* Header - Minimalista */}
+            {/* Header - Minimalista sin margin */}
             <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
-                <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+                <div className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center">
                             <img src="/logo.png" alt="BilboTrans" className="w-7 h-7 object-contain" />
@@ -293,15 +339,15 @@ export default function Home() {
 
             {/* Metro Content */}
             {activeTransport === 'metro' && (
-                <div className="animate-fadeIn">
-                    {/* Search Card */}
-                    <div className="bg-white border-b border-slate-100">
-                        <div className="max-w-lg mx-auto p-4">
+                <div className="animate-fadeIn px-4 sm:px-6 lg:px-8">
+                    {/* Search Card - Minimalista estilo Apple con borde naranja */}
+                    <div className="bg-white text-slate-900 rounded-3xl shadow-sm mb-6 border-2 mt-2 border-orange-500">
+                        <div className="max-w-lg mx-auto p-6">
+                            <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-4">Planifica tu ruta</h2>
                             <div className="space-y-3">
                                 {/* Origin */}
                                 <div className="relative">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-3 h-3 rounded-full bg-green-500 shrink-0" />
                                         <input
                                             type="text"
                                             value={origin}
@@ -311,14 +357,13 @@ export default function Home() {
                                             }}
                                             onFocus={() => origin.length >= 2 && !selectedOrigin && setShowOriginDropdown(true)}
                                             placeholder={t('whereFrom')}
-                                            className="flex-1 py-2.5 text-sm text-slate-900 placeholder-slate-400 
-                                                     bg-transparent border-none focus:outline-none"
+                                            className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
                                             style={{ fontSize: 16 }}
                                         />
                                         {selectedOrigin && (
                                             <button
                                                 onClick={() => { setOrigin(''); setSelectedOrigin(null); }}
-                                                className="p-1 rounded-full hover:bg-slate-100 text-slate-400"
+                                                className="p-1 rounded-full hover:bg-slate-200 text-slate-400 transition-colors"
                                             >
                                                 <X className="w-4 h-4" />
                                             </button>
@@ -328,7 +373,7 @@ export default function Home() {
                                     {showOriginDropdown && originResults.length > 0 && (
                                         <>
                                             {renderDropdownOverlay(() => setShowOriginDropdown(false))}
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-40 max-h-64 overflow-y-auto">
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-40 max-h-64 overflow-y-auto text-slate-900">
                                                 {originResults.map((stop) => renderDropdownItem(stop, 'origin'))}
                                             </div>
                                         </>
@@ -337,23 +382,20 @@ export default function Home() {
 
                                 {/* Divider with Swap */}
                                 <div className="flex items-center gap-3">
-                                    <div className="w-3 flex justify-center">
-                                        <div className="w-0.5 h-6 bg-slate-200" />
-                                    </div>
-                                    <div className="flex-1 h-px bg-slate-100" />
+                                    <div className="flex-1 h-px bg-slate-200" />
                                     <button
                                         onClick={handleSwap}
                                         disabled={!selectedOrigin && !selectedDest}
                                         className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-30"
                                     >
-                                        <ArrowUpDown className="w-4 h-4 text-slate-500" />
+                                        <ArrowUpDown className="w-4 h-4 text-slate-600" />
                                     </button>
+                                    <div className="flex-1 h-px bg-slate-200" />
                                 </div>
 
                                 {/* Destination */}
                                 <div className="relative">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-3 h-3 rounded-full bg-red-500 shrink-0" />
                                         <input
                                             type="text"
                                             value={destination}
@@ -363,14 +405,13 @@ export default function Home() {
                                             }}
                                             onFocus={() => destination.length >= 2 && !selectedDest && setShowDestDropdown(true)}
                                             placeholder={t('whereTo')}
-                                            className="flex-1 py-2.5 text-sm text-slate-900 placeholder-slate-400 
-                                                     bg-transparent border-none focus:outline-none"
+                                            className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
                                             style={{ fontSize: 16 }}
                                         />
                                         {selectedDest && (
                                             <button
                                                 onClick={() => { setDestination(''); setSelectedDest(null); }}
-                                                className="p-1 rounded-full hover:bg-slate-100 text-slate-400"
+                                                className="p-1 rounded-full hover:bg-slate-200 text-slate-400 transition-colors"
                                             >
                                                 <X className="w-4 h-4" />
                                             </button>
@@ -380,7 +421,7 @@ export default function Home() {
                                     {showDestDropdown && destResults.length > 0 && (
                                         <>
                                             {renderDropdownOverlay(() => setShowDestDropdown(false))}
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-40 max-h-64 overflow-y-auto">
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-40 max-h-64 overflow-y-auto text-slate-900">
                                                 {destResults.map((stop) => renderDropdownItem(stop, 'dest'))}
                                             </div>
                                         </>
@@ -391,24 +432,19 @@ export default function Home() {
                                 <button
                                     onClick={handleSearch}
                                     disabled={!selectedOrigin || !selectedDest}
-                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl 
-                                             bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 
-                                             text-white disabled:text-slate-400 font-semibold text-sm
-                                             transition-all active:scale-[0.98] disabled:cursor-not-allowed"
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 text-white disabled:text-slate-400 font-semibold text-base transition-all active:scale-[0.98] disabled:cursor-not-allowed shadow-sm"
                                 >
                                     <Search className="w-4 h-4" />
                                     {t('searchRoute')}
                                 </button>
 
-                                {/* Metro Map Button - Fullscreen */}
+                                {/* Metro Map Button */}
                                 <button
                                     onClick={() => router.push('/metro-map')}
-                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl 
-                                             bg-slate-100 hover:bg-slate-200
-                                             text-slate-700 font-semibold text-sm
-                                             transition-all active:scale-[0.98]"
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-base transition-all active:scale-[0.98] shadow-sm"
                                 >
-                                    🗺️ Ver mapa del metro
+                                    <MapPin className="w-4 h-4" />
+                                    Ver mapa del metro
                                 </button>
 
                             </div>
@@ -420,7 +456,7 @@ export default function Home() {
             {/* Bilbobus Content */}
             {activeTransport === 'bilbobus' && (
                 <div className="animate-fadeIn">
-                    <div className="bg-red-600 text-white px-4 py-6 shadow-md">
+                    <div className="bg-red-600 text-white px-4 sm:px-6 lg:px-8 py-6 shadow-md">
                         <div className="max-w-lg mx-auto">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
@@ -441,7 +477,7 @@ export default function Home() {
                                         value={bilbobusSearch}
                                         onChange={(e) => setBilbobusSearch(e.target.value)}
                                         placeholder="Busca una parada o línea..."
-                                        className="flex-1 py-2 text-sm text-white placeholder-red-200 bg-transparent border-none focus:outline-none placeholder:text-red-100/50"
+                                        className="flex-1 py-2 text-sm text-white bg-transparent border-none focus:outline-none placeholder:text-red-100/50"
                                         style={{ fontSize: 16 }}
                                     />
                                     {bilbobusSearch && (
@@ -509,8 +545,13 @@ export default function Home() {
 
             {/* Common Tabs Section */}
             {(activeTransport === 'metro' || activeTransport === 'bilbobus') && (
-                <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+                <main className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
                     {activeTransport === 'metro' && <MetroIncidents />}
+
+                    {/* Section Title */}
+                    <div className="mt-2 mb-3">
+                        <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Mis estaciones</h3>
+                    </div>
 
                     {/* Quick Tabs */}
                     <div className="flex gap-2">
@@ -528,13 +569,13 @@ export default function Home() {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
-                                        ? `${activeColor} text-white`
-                                        : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 shadow-sm'
+                                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive
+                                        ? `${activeColor} text-white shadow-sm`
+                                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                         }`}
                                 >
                                     <Icon className={`w-4 h-4 ${isActive && tab.id === 'favorites' ? 'fill-current' : ''}`} />
-                                    <span className="hidden sm:inline">{tab.label}</span>
+                                    <span>{tab.label}</span>
                                     {tab.count !== undefined && tab.count > 0 && (
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isActive ? 'bg-white/20 text-white' : badgeColor
                                             }`}>
@@ -571,7 +612,7 @@ export default function Home() {
             {/* Bizkaibus - Functional */}
             {activeTransport === 'bizkaibus' && (
                 <div className="flex-1 flex flex-col">
-                    <div className="bg-linear-to-r from-green-500 to-emerald-600 text-white px-4 py-6">
+                    <div className="bg-linear-to-r from-green-500 to-emerald-600 text-white px-4 sm:px-6 lg:px-8 py-6">
                         <div className="max-w-lg mx-auto">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
@@ -599,8 +640,15 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Renfe - Coming Soon */}
-            {activeTransport === 'renfe' && renderComingSoon('Renfe Cercanías', 'bg-purple-500')}
+            {/* Renfe */}
+            {activeTransport === 'renfe' && (
+                <div className="flex-1 flex flex-col">
+                    {/* Use RenfeSection component */}
+                    <div className="max-w-3xl w-full mx-auto">
+                        <RenfeSection />
+                    </div>
+                </div>
+            )}
 
             {/* Bottom Navigation */}
             <BottomNav

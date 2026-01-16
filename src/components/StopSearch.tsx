@@ -4,13 +4,22 @@ import { Search, Loader2, Train, Bus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { searchStops, SearchResult } from '@/lib/shared/stopSearch';
+import { useLastSearch } from '@/hooks/useLastSearch';
 
 export function StopSearch() {
     const router = useRouter();
+    const { lastSearch: lastTerm, saveSearch: saveTerm } = useLastSearch<string>('general_stop');
     const [term, setTerm] = useState('');
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Pre-fill from last search
+    useEffect(() => {
+        if (lastTerm && term === '') {
+            setTerm(lastTerm);
+        }
+    }, [lastTerm]);
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
@@ -30,6 +39,7 @@ export function StopSearch() {
     }, [term]);
 
     const handleSelect = (stop: SearchResult) => {
+        saveTerm(term);
         setTerm('');
         setIsOpen(false);
         setResults([]);
@@ -60,13 +70,14 @@ export function StopSearch() {
             {isOpen && (
                 <>
                     {/* Backdrop */}
-                    <div
-                        className="fixed inset-0 z-40"
+                    <button
+                        className="fixed inset-0 z-40 bg-transparent w-full h-full cursor-default"
                         onClick={() => {
                             setIsOpen(false);
                             setTerm('');
                             setResults([]);
                         }}
+                        aria-label="Cerrar búsqueda"
                     />
 
                     {/* Dropdown */}

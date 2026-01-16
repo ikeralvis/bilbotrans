@@ -45,7 +45,7 @@ const navItems: NavItem[] = [
         icon: TrainFront,
         color: 'text-purple-600',
         bgColor: 'bg-purple-100',
-        available: false
+        available: true
     },
 ];
 

@@ -90,6 +90,9 @@ export default function StationPage() {
                     agency: 'bilbobus'
                 }));
                 setSchedules(transformed);
+            } else if (agency === 'renfe') {
+                // For Renfe show available lines and a CTA to search itinerarios
+                setSchedules([]);
             }
             setLastUpdate(new Date());
         } catch (err) {
@@ -316,6 +319,34 @@ export default function StationPage() {
                                 ))}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {agency === 'renfe' && (
+                    <div className="space-y-4">
+                        <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                            <h2 className="text-lg font-semibold text-slate-900">Renfe Cercanías</h2>
+                            <p className="text-sm text-slate-500 mt-1">Accede a itinerarios entre estaciones y guarda tus paradas favoritas.</p>
+                            <div className="mt-4 flex gap-3">
+                                <button
+                                    onClick={() => router.push('/?origin=&dest=&')}
+                                    className="flex-1 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-medium"
+                                >
+                                    Buscar itinerario
+                                </button>
+                                <button
+                                    onClick={() => router.push('/renfe/route')}
+                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium"
+                                >
+                                    Ver itinerarios
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-slate-200 p-4">
+                            <h3 className="text-sm font-semibold text-slate-600 mb-2">Líneas</h3>
+                            <p className="text-xs text-slate-500">Consulta las líneas disponibles para esta estación o busca un itinerario.</p>
+                        </div>
                     </div>
                 )}
 

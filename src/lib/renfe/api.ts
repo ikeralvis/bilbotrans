@@ -52,6 +52,21 @@ export function getAllRenfeStops(): RenfeStop[] {
 }
 
 /**
+ * Get Renfe stop by ID
+ */
+export function getRenfeStopById(id: string): RenfeStop | null {
+    const stop = (renfeStopsData as any[]).find(s => s.id === id);
+    if (!stop) return null;
+    return {
+        id: stop.id,
+        name: stop.name,
+        lat: stop.latitude,
+        lon: stop.longitude,
+        lines: stop.Lines
+    };
+}
+
+/**
  * Get nearby Renfe stops
  */
 export function getNearbyRenfeStops(lat: number, lon: number, radiusKm: number = 1.0): RenfeStop[] {

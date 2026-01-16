@@ -13,21 +13,26 @@ interface Stop extends SearchResult {
     agency: 'metro' | 'bilbobus' | 'bizkaibus';
 }
 
+interface RealTimeTrainData {
+    wagons: number;
+    estimated: number;
+    direction: string;
+    time: string;
+    timeRounded: string;
+}
+
 interface MetroScheduleResponse {
-    trains: Array<{
-        departure: string;
-        arrival: string;
-        duration: number;
-        line: string;
-        transfer: boolean;
-        transferStation?: string;
-    }>;
+    trains: RealTimeTrainData[];
     trip: {
         fromStation: { code: string; name: string };
         toStation: { code: string; name: string };
         duration: number;
         line: string;
         transfer: boolean;
+    };
+    exits?: {
+        origin: Array<{ id: number; name: string; elevator: boolean; nocturnal: boolean }>;
+        destiny: Array<{ id: number; name: string; elevator: boolean; nocturnal: boolean }>;
     };
 }
 
@@ -95,20 +100,21 @@ export function RouteContent() {
                 try {
                     const response = await fetch(`/api/metro/schedule?origin=${originId}&dest=${destId}`);
                     if (response.ok) {
-                        const scheduleData = await response.json();
-                        console.log('[Route] Schedule response:', scheduleData);
+                        const scheduleData: MetroScheduleResponse = await response.json();
+                        console.log('[Route] Real-time response:', scheduleData);
                         if (scheduleData.trains && scheduleData.trains.length > 0) {
                             // Convertir datos del endpoint real-time a formato MetroArrival
-                            const convertedArrivals: MetroArrival[] = scheduleData.trains.map((train: any, idx: number) => {
-                                const etaMinutes = train.estimated ?? (train.Minutes || 0);
+                            const convertedArrivals: MetroArrival[] = scheduleData.trains.map((train: RealTimeTrainData) => {
+                                const etaMinutes = train.estimated;
                                 return {
-                                    lineId: scheduleData.trip?.line || train.line || 'L1',
-                                    destination: destWithAgency.name,
+                                    lineId: scheduleData.trip?.line || 'L1',
+                                    destination: scheduleData.trip?.toStation?.name || destWithAgency.name,
                                     etaMinutes: etaMinutes,
-                                    etaDisplay: `${etaMinutes} min`,
-                                    platform: `${train.direction || 'Andén desconocido'}`,
-                                    wagons: train.wagons || 0,
-                                    time: train.time || train.timeRounded || ''
+                                    etaDisplay: etaMinutes > 10 ? train.timeRounded : `${etaMinutes} min`,
+                                    platform: train.direction,
+                                    wagons: train.wagons,
+                                    time: train.timeRounded,
+                                    duration: scheduleData.trip?.duration
                                 };
                             });
                             setArrivals(convertedArrivals);
@@ -317,40 +323,61 @@ export function RouteContent() {
                             {arrivals.slice(0, 6).map((arrival, idx) => (
                                 <div
                                     key={`${arrival.lineId}-${arrival.destination}-${idx}`}
-                                    className={`p-4 flex items-center justify-between ${idx === 0 ? 'bg-orange-50' : 'hover:bg-slate-50'
-                                        } transition-colors`}
+                                    className={`p-4 ${idx === 0 ? 'bg-orange-50' : 'hover:bg-slate-50'} transition-colors`}
                                 >
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${idx === 0 ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'
-                                            }`}>
-                                            <span className="text-lg font-bold leading-none">
-                                                {arrival.etaMinutes <= 0 ? '0' : arrival.etaMinutes}
-                                            </span>
-                                            <span className="text-[10px] font-medium">min</span>
+                                    <div className="flex items-center gap-3">
+                                        {/* Tiempo - Cuadro grande */}
+                                        <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 ${idx === 0 ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                                            {arrival.etaMinutes <= 10 ? (
+                                                <>
+                                                    <span className="text-xl font-bold leading-none">
+                                                        {arrival.etaMinutes <= 0 ? '0' : arrival.etaMinutes}
+                                                    </span>
+                                                    <span className="text-[10px] font-medium opacity-80">min</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-base font-bold leading-tight">{arrival.time}</span>
+                                            )}
                                         </div>
+                                        
+                                        {/* Info central */}
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-slate-900 truncate">
-                                                → {arrival.destination}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-0.5">
+                                            <div className="flex items-center gap-2 mb-1">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${getLineColor(arrival.lineId)}`}>
                                                     {getCleanLineId(arrival.lineId)}
                                                 </span>
-                                                {arrival.wagons && (
-                                                    <span className="text-xs text-slate-500">
-                                                        {arrival.wagons} vagones
-                                                    </span>
+                                                <span className="text-sm font-semibold text-slate-900 truncate">
+                                                    → {arrival.destination}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                                                <span className="flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    {arrival.time}
+                                                </span>
+                                                <span>•</span>
+                                                <span>{arrival.platform}</span>
+                                                {arrival.wagons && arrival.wagons > 0 && (
+                                                    <>
+                                                        <span>•</span>
+                                                        <span>{arrival.wagons} vag.</span>
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="text-right shrink-0 ml-3">
-                                        <p className="text-xs text-slate-500">{arrival.platform}</p>
-                                        {idx === 0 && arrival.etaMinutes <= 2 && (
-                                            <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold animate-pulse">
-                                                ¡Ya llega!
-                                            </span>
-                                        )}
+                                        
+                                        {/* Estado */}
+                                        <div className="shrink-0 text-right">
+                                            {idx === 0 && arrival.etaMinutes <= 2 ? (
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold animate-pulse">
+                                                    ¡Ya llega!
+                                                </span>
+                                            ) : arrival.etaMinutes > 10 ? (
+                                                <span className="text-sm font-medium text-slate-600">
+                                                    {arrival.etaMinutes} min
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
