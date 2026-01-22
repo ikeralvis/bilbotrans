@@ -1,6 +1,5 @@
 'use client';
 
-// Navigation hooks reserved for future use
 import { Train, Bus, TrainFront } from 'lucide-react';
 
 type TransportType = 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe';
@@ -50,8 +49,8 @@ const navItems: NavItem[] = [
 ];
 
 interface BottomNavProps {
-    activeTransport: TransportType;
-    onTransportChange: (transport: TransportType) => void;
+    readonly activeTransport: TransportType;
+    readonly onTransportChange: (transport: TransportType) => void;
 }
 
 export function BottomNav({ activeTransport, onTransportChange }: BottomNavProps) {

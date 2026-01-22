@@ -131,24 +131,144 @@ https://api.metrobilbao.eus/metro/obtain-schedule-of-trip/{origin}/{destination}
 
 ### Bizkaibus
 
-**Endpoint encontrado en arin-main:**
+#### 1. **Llegadas en tiempo real por parada** ⭐
 ```
 GET https://apli.bizkaia.net/APPS/DANOK/TQWS/TQ.ASMX/GetPasoParadaMobile_JSON?callback=""&strLinea=&strParada={stopCode}
 ```
 
-**Datos disponibles:**
-- Tiempos de llegada en tiempo real
-- Línea y ruta
-- Minutos estimados (e1, e2)
+**Parámetros:**
+- `stopCode`: Código de parada (ej: 3912, 0913)
+- `callback`: Dejar vacío `""` para JSONP
+
+**Respuesta (después de limpiar JSONP):**
+```json
+{
+  "STATUS": "OK",
+  "Resultado": "<PasoParada><linea>A3250</linea><ruta>Bilbao-Teknologia Parkea</ruta>...</PasoParada>"
+}
+```
 
 **Notas:**
-- La respuesta está en formato JSONP y necesita parsing especial
-- Los datos XML están embebidos en el JSON
+- Formato JSONP: `""({...});` - Necesita limpieza con regex
+- Los datos vienen en XML dentro del campo `Resultado`
+- `e1` = Primera llegada, `e2` = Segunda llegada
+- Tiempos en minutos
 
-**Itinerarios:**
+#### 2. **Itinerarios de línea (paradas de ruta)**
 ```
 GET https://apli.bizkaia.net/apps/danok/tqws/tq.asmx/GetItinerarioLinea_JSON?callback=jsonCallbackParadas&sCodigoLinea={lineCode}&sNumeroRuta={routeNumber}&sSentido={direction}
 ```
+
+**Parámetros:**
+- `lineCode`: Código de línea (ej: A3250, A3123)
+- `routeNumber`: Número de ruta, generalmente "001"
+- `direction`: `V` (Vuelta) o `I` (Ida)
+
+**Respuesta:**
+```json
+{
+  "STATUS": "OK",
+  "Consulta": {
+    "Linea": "A3250",
+    "Descripcion": "BILBAO - Teknologia Parkea/Parque Tecnológico",
+    "DescripcionRuta": "Bilbao-Teknologia Parkea",
+    "TRTipoRuta": "1",
+    "Ruta": "001",
+    "Sentido": "V",
+    "Paradas": [
+      {
+        "IR_PROVIN": "48",
+        "IR_MUNICI": "901",
+        "DescripcionMunicipio": "DERIO",
+        "IR_PARADA": "032",
+        "PR_DENOMI": "Nekazaritza Eskola/Escuela Agraria",
+        "PR_CODRED": "3912"
+      }
+    ]
+  }
+}
+```
+
+#### 3. **Tarifas de línea (origen-destino)**
+```
+GET https://apli.bizkaia.net/apps/danok/tqws/tq.asmx/GetTarifasLinea_JSON?callback=jsonCallbackTarifa&sCodigoLinea={lineCode}&sCodigoProvinciaOrigen={provOrigin}&SCodigoMunicipioOrigen={munOrigin}&sCodigoCentroOrigen=&sCodigoProvinciaDestino={provDest}&SCodigoMunicipioDestino={munDest}&sCodigoCentroDestino=
+```
+
+**Parámetros:**
+- `lineCode`: Código de línea (ej: A3250)
+- `provOrigin/provDest`: Código de provincia (48 = Bizkaia)
+- `munOrigin/munDest`: Código de municipio (901 = Derio, 020 = Bilbao)
+
+**Respuesta:**
+```json
+{
+  "STATUS": "OK",
+  "Consulta": {
+    "Linea": "A3250",
+    "Descripcion": "BILBAO - Teknologia Parkea/Parque Tecnológico",
+    "Tarifas": {
+      "TF_LABORL": "2,1",
+      "TF_CRETRN": "0,7",
+      "TF_JUBILA": "0,3"
+    }
+  }
+}
+```
+
+#### 4. **Listado de todas las líneas**
+```
+GET https://apli.bizkaia.net/apps/danok/tqws/tq.asmx/GetLineas_JSON?callback=xmlCallbackRellenarLineas&iTipoConsulta=1&sCodigoLinea=&sNumeroRuta=&sSentido=&sDescripcionLinea=&sListaCodigosLineas=
+```
+
+**Respuesta:**
+```json
+{
+  "STATUS": "OK",
+  "Lineas": [
+    {
+      "LI_CODIGO": "A3250",
+      "LI_DENOMI": "BILBAO - Teknologia Parkea",
+      "LI_RAIZ": "A3",
+      "LI_NUMEROLINEA": "250"
+    }
+  ]
+}
+```
+
+#### 5. **Paradas cercanas por coordenadas**
+```
+GET https://apli.bizkaia.net/apps/danok/tqws/tq.asmx/GetParadasCercanasLatLon_JSON?callback=jsonParadas&dLatitudOrigen={lat}&dLongitudOrigen={lon}&dRadio={radius}
+```
+
+**Parámetros:**
+- `lat`: Latitud (ej: 43.2630)
+- `lon`: Longitud (ej: -2.9350)
+- `radius`: Radio en metros (ej: 500)
+
+**Respuesta:**
+```json
+{
+  "STATUS": "OK",
+  "Consulta": {
+    "Paradas": [
+      {
+        "PROVINCIA": "48",
+        "MUNICIPIO": "020",
+        "PARADA": "188",
+        "DENOMINACION": "Zabalburu (Juan de Garay)",
+        "LATITUD": "43.256748",
+        "LONGITUD": "-2.933824",
+        "CODIGOREDUCIDOPARADA": "4121"
+      }
+    ]
+  }
+}
+```
+
+**Notas generales:**
+- Todas las respuestas están en formato JSONP y necesitan limpieza
+- Los callbacks varían: `jsonCallbackTarifa`, `jsonCallbackParadas`, `xmlCallbackRellenarLineas`
+- Pattern de limpieza: `.replace(/^.*?\(/, '').replace(/\);?\s*$/, '').replace(/'/g, '"')`
 
 ---
 

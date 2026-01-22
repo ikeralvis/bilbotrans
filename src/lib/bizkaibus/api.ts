@@ -79,9 +79,14 @@ export async function getBizkaibusArrivals(stopId: string): Promise<BizkaibusRes
         const response = await fetch(url, { method: 'GET' });
         const text = await response.text();
 
+        console.log(`[Bizkaibus API] Raw response:`, text.substring(0, 200));
+
         // Clean the JSONP response
         let cleanedText = text.replace('""(', '').replace(');', '').replace(/'/g, '"');
+        console.log(`[Bizkaibus API] Cleaned text:`, cleanedText.substring(0, 200));
+        
         const jsonData = JSON.parse(cleanedText);
+        console.log(`[Bizkaibus API] Parsed JSON status:`, jsonData.STATUS);
 
         if (jsonData.STATUS === 'NOINFO') {
             console.log(`[Bizkaibus API] No info for stop ${stopId}`);
@@ -100,11 +105,24 @@ export async function getBizkaibusArrivals(stopId: string): Promise<BizkaibusRes
             };
         }
 
+        // Verificar que DOMParser esté disponible
+        if (typeof DOMParser === 'undefined') {
+            console.error('[Bizkaibus API] DOMParser not available (server-side?)');
+            return {
+                status: 'ERROR',
+                arrivals: [],
+                error: 'DOMParser not available'
+            };
+        }
+
         // Parse XML response
+        console.log(`[Bizkaibus API] Parsing XML with DOMParser...`);
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(jsonData.Resultado, 'text/xml');
 
         const pasosParada = xmlDoc.getElementsByTagName('PasoParada');
+        console.log(`[Bizkaibus API] Found ${pasosParada.length} PasoParada elements`);
+        
         const arrivals: BizkaibusArrival[] = Array.from(pasosParada).map((paso) => {
             const linea = paso.getElementsByTagName('linea')[0]?.textContent || 'N/A';
             const ruta = paso.getElementsByTagName('ruta')[0]?.textContent || 'N/A';
@@ -117,7 +135,7 @@ export async function getBizkaibusArrivals(stopId: string): Promise<BizkaibusRes
                 10
             ) || undefined;
 
-            return {
+            const arrival = {
                 lineId: toTitleCase(linea),
                 route: toTitleCase(ruta),
                 destination: toTitleCase(ruta),
@@ -126,6 +144,9 @@ export async function getBizkaibusArrivals(stopId: string): Promise<BizkaibusRes
                 nextEtaMinutes: e2Minutos,
                 nextEtaDisplay: e2Minutos ? `${e2Minutos} min` : undefined
             };
+            
+            console.log(`[Bizkaibus API] Parsed arrival:`, arrival);
+            return arrival;
         });
 
         console.log(`[Bizkaibus API] Got ${arrivals.length} arrivals for stop ${stopId}`);

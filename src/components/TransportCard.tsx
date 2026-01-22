@@ -32,10 +32,10 @@ export function TransportCard({
     originExits,
     destinationExits
 }: Readonly<TransportCardProps>) {
-    // Agency config
+    // Agency config con colores oficiales de Bizkaibus
     const config = {
         metro: { bg: 'bg-orange-500', text: 'text-white', label: 'Metro', dot: 'bg-orange-500' },
-        bizkaibus: { bg: 'bg-green-600', text: 'text-white', label: 'Bizkaibus', dot: 'bg-green-600' },
+        bizkaibus: { bg: '#22533d', text: 'text-white', label: 'Bizkaibus', dot: '#a5ca71', bgLight: '#a5ca71' },
         bilbobus: { bg: 'bg-red-600', text: 'text-white', label: 'Bilbobus', dot: 'bg-red-600' },
         renfe: { bg: 'bg-purple-600', text: 'text-white', label: 'Renfe', dot: 'bg-purple-600' }
     };
@@ -44,34 +44,57 @@ export function TransportCard({
     const isImminent = etaMinutes <= 2;
     const isArrived = etaMinutes <= 0;
 
-    // Extract clean line name (L1, L2, L3)
+    // Extract clean line name
     const getLineDisplay = (line: string): string => {
         if (agency === 'metro') {
             const regex = /L[1-3]/;
             const match = regex.exec(line);
             return match ? match[0] : line.slice(0, 2);
         }
-        return line.length > 4 ? line.slice(0, 3) : line;
+        // Para Bizkaibus, mostrar línea completa (A3250, A3247, etc.)
+        return line;
     };
 
-    // Line color based on L1/L2/L3
+    // Line color based on agency and line
     const getLineColor = (line: string): string => {
-        if (line.includes('L1')) return 'bg-orange-500';
-        if (line.includes('L2')) return 'bg-green-600';
-        if (line.includes('L3')) return 'bg-blue-600';
-        return theme.bg;
+        if (agency === 'metro') {
+            if (line.includes('L1')) return 'bg-[#f14e2d]';
+            if (line.includes('L2')) return 'bg-[#242324]';
+            if (line.includes('L3')) return 'bg-blue-600';
+        }
+        if (agency === 'bizkaibus') {
+            // Verde oscuro de Bizkaibus
+            return '';
+        }
+        return typeof theme.bg === 'string' && theme.bg.startsWith('bg-') ? theme.bg : 'bg-slate-600';
+    };
+
+    // Estilo especial para badge de Bizkaibus
+    const getLineBadgeStyle = () => {
+        if (agency === 'bizkaibus') {
+            return {
+                backgroundColor: '#22533d',
+                color: '#a5ca71'
+            };
+        }
+        return {};
     };
 
     return (
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white 
-                      border border-slate-100 hover:border-slate-200 hover:shadow-sm 
-                      hover:bg-slate-50 transition-smooth active:scale-[0.98] duration-200 animate-fadeIn">
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-white 
+                      border border-slate-200 hover:border-slate-300 hover:shadow-md 
+                      transition-all duration-200 animate-fadeIn">
             {/* Left: Line + Destination */}
-            <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                {/* Line Badge */}
-                <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${getLineColor(lineId)} text-white
-                              font-bold text-sm shadow-sm shrink-0`}>
-                    {getLineDisplay(lineId)}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Line Badge - Más ancho para líneas largas */}
+                <div 
+                    className={`flex items-center justify-center min-w-[3rem] h-11 px-2 rounded-lg
+                              font-bold text-sm shadow-sm shrink-0 ${
+                                  agency === 'bizkaibus' ? '' : `${getLineColor(lineId)} text-white`
+                              }`}
+                    style={agency === 'bizkaibus' ? getLineBadgeStyle() : {}}
+                >
+                    <span className="text-center leading-tight">{getLineDisplay(lineId)}</span>
                 </div>
 
                 {/* Details */}

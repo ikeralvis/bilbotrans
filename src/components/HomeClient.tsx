@@ -10,9 +10,10 @@ import { BottomNav, TransportType } from '@/components/BottomNav';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { getNearbyStops, searchBilbobusStops, getAllBilbobusLines } from '@/app/actions';
+import { getNearbyStops, getAllBilbobusLines } from '@/app/actions';
 import { searchStops } from '@/lib/shared/stopSearch';
-import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, Construction, MapPin, Map, List, AlertTriangle } from 'lucide-react';
+import { searchBizkaibusStops, type BizkaibusStopResult } from '@/lib/bizkaibus/search';
+import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, MapPin, Map, List, AlertTriangle } from 'lucide-react';
 import { BilbobusLine, BilbobusStop } from '@/lib/bilbobus/api';
 import { StopLocation } from '@/types/transport';
 import { useLastSearch } from '@/hooks/useLastSearch';
@@ -24,7 +25,7 @@ export default function HomeClient() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { t } = useLanguage();
-    const { favorites, isLoading: favLoading } = useFavorites();
+    const { favorites, removeFavorite, isLoading: favLoading } = useFavorites();
     const { location, requestLocation, isLoading: geoLoading } = useGeolocation();
     const [nearbyStops, setNearbyStops] = useState<StopLocation[]>([]);
     const [isLoadingNearby, setIsLoadingNearby] = useState(false);
@@ -44,6 +45,12 @@ export default function HomeClient() {
             setActiveTransport(tab as TransportType);
         }
     }, [searchParams]);
+
+    // Function to change transport and update URL
+    const handleTransportChange = (transport: TransportType) => {
+        setActiveTransport(transport);
+        router.push(`/?tab=${transport}`);
+    };
 
     // Pre-fill Metro from last search
     useEffect(() => {
@@ -79,11 +86,16 @@ export default function HomeClient() {
     const [bilbobusSearch, setBilbobusSearch] = useState('');
     const [bilbobusResults, setBilbobusResults] = useState<BilbobusStop[]>([]);
 
+    // Bizkaibus state
+    const [bizkaibusSearch, setBizkaibusSearch] = useState('');
+    const [bizkaibusResults, setBizkaibusResults] = useState<BizkaibusStopResult[]>([]);
+    const [showBizkaibusDropdown, setShowBizkaibusDropdown] = useState(false);
+
     // Swipe to refresh handler
     const handleRefresh = useCallback(async () => {
         if (isRefreshing) return;
         setIsRefreshing(true);
-        
+
         // Forzar recarga de favoritos/cercanas
         if (activeTab === 'nearby' && location) {
             setIsLoadingNearby(true);
@@ -92,7 +104,7 @@ export default function HomeClient() {
                 setNearbyStops(results.map(r => ({
                     id: r.id,
                     name: r.name,
-                    agency: (r.agency || 'metro') as 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe',
+                    agency: r.agency || 'metro',
                     lat: r.lat || 0,
                     lon: r.lon || 0
                 })));
@@ -102,7 +114,7 @@ export default function HomeClient() {
                 setIsLoadingNearby(false);
             }
         }
-        
+
         setTimeout(() => setIsRefreshing(false), 500);
     }, [isRefreshing, activeTab, location]);
 
@@ -192,7 +204,23 @@ export default function HomeClient() {
         return () => clearTimeout(delayDebounceFn);
     }, [destination, selectedDest, activeTransport]);
 
-    // Cargar llegadas de Bizkaibus cuando se selecciona una parada
+    // Buscar paradas de Bizkaibus - BÚSQUEDA LOCAL (sin BD)
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (bizkaibusSearch.length >= 2 && activeTransport === 'bizkaibus') {
+                // Búsqueda LOCAL en el JSON (no usa BD ni API)
+                const results = searchBizkaibusStops(bizkaibusSearch, 15);
+                setBizkaibusResults(results);
+                setShowBizkaibusDropdown(true);
+            } else {
+                setBizkaibusResults([]);
+                setShowBizkaibusDropdown(false);
+            }
+        }, 300);
+        return () => clearTimeout(delayDebounceFn);
+    }, [bizkaibusSearch, activeTransport]);
+
+    // Cargar llegadas cuando se selecciona una parada
     const handleStopSelect = useCallback((stopId: string, agency: string) => {
         if (agency === 'bilbobus' && bilbobusSearch) {
             saveBilbobusSearch(bilbobusSearch);
@@ -339,24 +367,30 @@ export default function HomeClient() {
 
             {/* Metro Content */}
             {activeTransport === 'metro' && (
-                <div className="animate-fadeIn px-4 sm:px-6 lg:px-8">
-                    <div className="max-w-lg mx-auto pt-2 pb-1 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                            <img src="/logoMetro.svg" alt="Metro Bilbao" className="w-4 h-4 object-contain" />
-                            <span>Metro Bilbao</span>
+                <div className="animate-fadeIn">
+                    {/* Orange Background Container with rounded bottom corners */}
+                    <div className="relative" style={{ backgroundColor: '#373737', height: '200px', borderBottomLeftRadius: '30px', borderBottomRightRadius: '30px' }}>
+                        {/* Header with Logo */}
+                        <div className="px-4 sm:px-6 lg:px-8 pt-3">
+                            <div className="max-w-lg mx-auto flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <img src="/logoMetro.svg" alt="Metro Bilbao" className="h-10 object-contain" />
+                                    <span className="font-extrabold text-white text-lg">Metro Bilbao</span>
+                                </div>
+                                <button
+                                    onClick={() => setShowIncidentsModal(true)}
+                                    className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+                                    aria-label="Ver incidencias"
+                                >
+                                    <AlertTriangle className="w-5 h-5 text-white" />
+                                </button>
+                            </div>
                         </div>
-                        <button
-                            onClick={() => setShowIncidentsModal(true)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                            aria-label="Ver incidencias"
-                        >
-                            <AlertTriangle className="w-4 h-4 text-slate-400 hover:text-orange-500 transition-colors" />
-                        </button>
                     </div>
 
-                    {/* Search Card - Minimalista estilo Apple con borde naranja */}
-                    <div className="bg-white text-slate-900 rounded-3xl shadow-sm mb-4 border-2 mt-2 border-orange-500">
-                        <div className="max-w-lg mx-auto p-6">
+                    {/* Floating White Search Panel */}
+                    <div className="px-4 sm:px-6 lg:px-8 relative" style={{ marginTop: '-125px', zIndex: 10 }}>
+                        <div className="max-w-lg mx-auto bg-white rounded-[30px] p-6 shadow-xl">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Planifica tu ruta</h2>
                                 <button
@@ -381,7 +415,7 @@ export default function HomeClient() {
                                             }}
                                             onFocus={() => origin.length >= 2 && !selectedOrigin && setShowOriginDropdown(true)}
                                             placeholder={t('whereFrom')}
-                                            className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
+                                            className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-[#f14e2d] focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
                                             style={{ fontSize: 16 }}
                                         />
                                         {selectedOrigin && (
@@ -429,7 +463,7 @@ export default function HomeClient() {
                                             }}
                                             onFocus={() => destination.length >= 2 && !selectedDest && setShowDestDropdown(true)}
                                             placeholder={t('whereTo')}
-                                            className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
+                                            className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-[#f14e2d] focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
                                             style={{ fontSize: 16 }}
                                         />
                                         {selectedDest && (
@@ -456,7 +490,8 @@ export default function HomeClient() {
                                 <button
                                     onClick={handleSearch}
                                     disabled={!selectedOrigin || !selectedDest}
-                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 text-white disabled:text-slate-400 font-semibold text-base transition-all active:scale-[0.98] disabled:cursor-not-allowed shadow-sm"
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-orange-600 disabled:bg-slate-200 text-white disabled:text-slate-400 font-semibold text-base transition-all active:scale-[0.98] disabled:cursor-not-allowed shadow-sm"
+                                    style={{ backgroundColor: '#f14e2d' }}
                                 >
                                     <Search className="w-4 h-4" />
                                     {t('searchRoute')}
@@ -557,12 +592,12 @@ export default function HomeClient() {
                 </div>
             )}
 
-            {/* Common Tabs Section */}
+            {/* Common Tabs Section - Solo para Metro y Bilbobus */}
             {(activeTransport === 'metro' || activeTransport === 'bilbobus') && (
                 <main className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
                     {isRefreshing && (
                         <div className="flex justify-center py-2 animate-fadeIn">
-                            <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                            <Loader2 className="w-5 h-5 animate-spin text-[#f14e2d]" />
                         </div>
                     )}
 
@@ -580,8 +615,12 @@ export default function HomeClient() {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
                             const isMetro = activeTransport === 'metro';
-                            const activeColor = isMetro ? 'bg-orange-500' : 'bg-red-600';
-                            const badgeColor = isMetro ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600';
+                            let activeColor = 'bg-red-600';
+                            let badgeColor = 'bg-red-100 text-red-600';
+                            if (isMetro) {
+                                activeColor = 'bg-[#f14e2d]';
+                                badgeColor = 'bg-orange-100 text-[#f14e2d]';
+                            }
 
                             return (
                                 <button
@@ -627,34 +666,196 @@ export default function HomeClient() {
                 </main>
             )}
 
-            {/* Bizkaibus - Functional */}
+            {/* Bizkaibus Content */}
             {activeTransport === 'bizkaibus' && (
-                <div className="flex-1 flex flex-col">
-                    <div className="bg-linear-to-r from-green-500 to-emerald-600 text-white px-4 sm:px-6 lg:px-8 py-6">
-                        <div className="max-w-lg mx-auto">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-                                    <Bus className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-bold">Bizkaibus</h2>
-                                    <p className="text-sm text-white/70">Autobuses de Bizkaia</p>
+                <div className="animate-fadeIn">
+                    {/* Green Background Container with rounded bottom corners */}
+                    <div className="relative" style={{ backgroundColor: '#22533d', height: '200px', borderBottomLeftRadius: '30px', borderBottomRightRadius: '30px' }}>
+                        {/* Header with Logo */}
+                        <div className="px-4 sm:px-6 lg:px-8 pt-3">
+                            <div className="max-w-lg mx-auto flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <img
+                                        src="/logoBizkaibus.png"
+                                        alt="Bizkaibus"
+                                        className="h-10 object-contain rounded-xl bg-white/20"
+                                        onError={(e) => {
+                                            e.currentTarget.style.display = 'none';
+                                        }}
+                                    />
+                                    <span className="font-extrabold text-white text-lg">Bizkaibus</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex-1 max-w-lg mx-auto w-full px-4 py-6">
-                        <div className="text-center py-12">
-                            <div className="w-20 h-20 rounded-2xl bg-green-100 mx-auto mb-4 flex items-center justify-center">
-                                <MapPin className="w-10 h-10 text-green-500" />
+                    {/* Floating White Search Panel */}
+                    <div className="px-4 sm:px-6 lg:px-8 relative" style={{ marginTop: '-125px', zIndex: 10 }}>
+                        <div className="max-w-lg mx-auto bg-white rounded-[30px] p-6 shadow-xl">
+                                <h2 className="text-sm font-bold text-green-800 uppercase tracking-wide mb-4">BUSCAR PARADA</h2>
+
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={bizkaibusSearch}
+                                        onChange={(e) => setBizkaibusSearch(e.target.value)}
+                                        onFocus={() => bizkaibusSearch.length >= 2 && bizkaibusResults.length > 0 && setShowBizkaibusDropdown(true)}
+                                        placeholder="Nombre o número de parada..."
+                                        className="w-full py-4 px-5 text-base rounded-[25px] bg-slate-100 text-slate-900 placeholder-slate-400 border-0 focus:ring-2 focus:ring-[#a5ca71] outline-none transition-all font-medium mb-4"
+                                        style={{ fontSize: 16 }}
+                                    />
+
+                                    {/* Search Button */}
+                                    <button
+                                        onClick={() => {
+                                            if (bizkaibusSearch.length >= 2 && bizkaibusResults.length > 0) {
+                                                handleStopSelect(bizkaibusResults[0].id, 'bizkaibus');
+                                            }
+                                        }}
+                                        className="w-full py-4 px-6 rounded-xl font-semibold text-white transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
+                                        style={{ backgroundColor: '#22533d' }}
+                                    >
+                                        Buscar parada
+                                    </button>
+
+                                    {bizkaibusSearch && (
+                                        <button
+                                            onClick={() => {
+                                                setBizkaibusSearch('');
+                                                setBizkaibusResults([]);
+                                                setShowBizkaibusDropdown(false);
+                                            }}
+                                            className="absolute right-4 top-4 p-1 rounded-full hover:bg-slate-200 transition-colors"
+                                        >
+                                            <X className="w-5 h-5 text-slate-400" />
+                                        </button>
+                                    )}
+
+                                    {/* Results Dropdown */}
+                                    {showBizkaibusDropdown && bizkaibusResults.length > 0 && (
+                                        <>
+                                            {renderDropdownOverlay(() => setShowBizkaibusDropdown(false))}
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[25px] shadow-lg border border-slate-200 max-h-80 overflow-y-auto z-40 animate-slideUp">
+                                                {bizkaibusResults.map((stop) => (
+                                                    <button
+                                                        key={`${stop.id}-${stop.agency}`}
+                                                        onClick={() => {
+                                                            setBizkaibusSearch(stop.name);
+                                                            setShowBizkaibusDropdown(false);
+                                                        }}
+                                                        className="w-full text-left px-4 py-3 flex items-center gap-3 border-b border-slate-100 last:border-b-0 first:rounded-t-[25px] last:rounded-b-[25px] hover:bg-green-50 transition-colors"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                                                            <Bus className="w-4 h-4 text-green-600" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="text-sm font-medium text-slate-900 truncate">{stop.name}</div>
+                                                            <div className="text-xs text-slate-500">Bizkaibus · ID: {stop.id}</div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* No results */}
+                                    {showBizkaibusDropdown && bizkaibusSearch.length >= 2 && bizkaibusResults.length === 0 && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[25px] shadow-lg border border-slate-200 p-4 z-40 animate-slideUp">
+                                            <p className="text-sm text-slate-500 text-center">No se encontraron paradas</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Busca una parada</h3>
-                            <p className="text-slate-500 text-sm max-w-xs mx-auto">
-                                Introduce el nombre o número de una parada de Bizkaibus para ver los próximos buses
-                            </p>
                         </div>
-                    </div>
+
+                    {/* Tabs de favoritos y cercanos (debajo de la búsqueda) */}
+                    <main className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+                        {isRefreshing && (
+                            <div className="flex justify-center py-2 animate-fadeIn">
+                                <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+                            </div>
+                        )}
+
+                        {/* Section Title */}
+                        <div className="mt-1 mb-2">
+                            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">MIS PARADAS</h3>
+                        </div>
+
+                        {/* Quick Tabs */}
+                        <div className="flex gap-2">
+                            {[
+                                { id: 'favorites', icon: Heart, label: t('favorites'), count: favorites.filter(f => f.agency === activeTransport).length },
+                                { id: 'nearby', icon: Navigation, label: t('nearby') },
+                            ].map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.id;
+
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                                        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive
+                                            ? 'bg-green-600 text-white shadow-sm'
+                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                            }`}
+                                    >
+                                        <Icon className={`w-4 h-4 ${isActive && tab.id === 'favorites' ? 'fill-current' : ''}`} />
+                                        <span>{tab.label}</span>
+                                        {tab.count !== undefined && tab.count > 0 && (
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-green-100 text-green-600'
+                                                }`}>
+                                                {tab.count}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Tab Content */}
+                        {activeTab === 'favorites' && (() => {
+                            let content;
+                            if (favLoading) {
+                                content = (
+                                    <div className="py-12 text-center">
+                                        <Loader2 className="w-6 h-6 animate-spin text-green-600 mx-auto mb-2" />
+                                        <p className="text-sm text-slate-500">Cargando favoritos...</p>
+                                    </div>
+                                );
+                            } else if (favorites.filter((f) => f.agency === 'bizkaibus').length === 0) {
+                                content = (
+                                    <div className="text-center py-12">
+                                        <Heart className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                                        <p className="text-slate-500 text-sm">{t('noFavorites')}</p>
+                                        <p className="text-slate-400 text-xs mt-1">Busca una parada y márcala como favorita</p>
+                                    </div>
+                                );
+                            } else {
+                                content = favorites
+                                    .filter((f) => f.agency === 'bizkaibus')
+                                    .map((fav) => (
+                                        <FavoriteStopCard
+                                            key={`${fav.agency}-${fav.stopId}`}
+                                            stopId={fav.stopId}
+                                            name={fav.name}
+                                            agency={fav.agency}
+                                            lat={fav.lat}
+                                            lon={fav.lon}
+                                            onTap={() => handleStopSelect(fav.stopId, fav.agency)}
+                                        />
+                                    ));
+                            }
+                            return <div className="space-y-3 animate-fadeIn">{content}</div>;
+                        })()}
+
+                        {activeTab === 'nearby' && (
+                            <NearbyStops
+                                stops={nearbyStops.filter(s => s.agency === 'bizkaibus')}
+                                onSelectStop={handleStopSelect}
+                                isLoading={isLoadingNearby}
+                            />
+                        )}
+                    </main>
                 </div>
             )}
 
@@ -671,13 +872,13 @@ export default function HomeClient() {
             {/* Bottom Navigation */}
             <BottomNav
                 activeTransport={activeTransport}
-                onTransportChange={setActiveTransport}
+                onTransportChange={handleTransportChange}
             />
 
             {/* Incidents Modal */}
             {showIncidentsModal && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                         onClick={() => setShowIncidentsModal(false)}
                     />

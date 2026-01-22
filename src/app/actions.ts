@@ -5,6 +5,7 @@ import { db } from '@/lib/shared/db';
 import { stops } from '@/db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import * as bilbobus from '@/lib/bilbobus/api';
+import { getBizkaibusStopById } from '@/lib/bizkaibus/search';
 
 export interface SearchResult {
     id: string;
@@ -56,6 +57,28 @@ export async function getStopDetails(stopId: string, agency: string): Promise<Se
     }
 
     try {
+        // Si es Bizkaibus, usar búsqueda local en JSON (no BD)
+        if (agency === 'bizkaibus') {
+            const stop = getBizkaibusStopById(stopId);
+            if (!stop) return null;
+            
+            const mapped: SearchResult = {
+                id: stop.id,
+                name: stop.name,
+                agency: 'bizkaibus',
+                lat: stop.lat,
+                lon: stop.lon,
+                metadata: {
+                    municipio: stop.municipio,
+                    direccion: stop.direccion
+                }
+            };
+            
+            setCache(cacheKey, mapped, 15 * 60 * 1000);
+            return mapped;
+        }
+        
+        // Para Metro/Bilbobus/Renfe usar BD
         const result = await db.select()
             .from(stops)
             .where(

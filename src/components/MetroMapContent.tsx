@@ -43,8 +43,8 @@ export default function MetroMapContent({ trains }: MetroMapContentProps) {
     };
 
     const trainIcons: Record<string, L.DivIcon> = {
-        L1: createTrainIcon('#f97316'),
-        L2: createTrainIcon('#16a34a'),
+        L1: createTrainIcon('#f14e2d'),
+        L2: createTrainIcon('#242324'),
         L3: createTrainIcon('#0ea5e9')
     };
 

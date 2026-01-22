@@ -196,8 +196,8 @@ export function RouteContent() {
     };
 
     const getLineColor = (line: string): string => {
-        if (line.includes('L1')) return 'bg-orange-500';
-        if (line.includes('L2')) return 'bg-green-600';
+        if (line.includes('L1')) return 'bg-[#f14e2d]';
+        if (line.includes('L2')) return 'bg-[#242324]';
         if (line.includes('L3')) return 'bg-blue-600';
         return 'bg-slate-500';
     };

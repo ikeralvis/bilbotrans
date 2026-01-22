@@ -10,12 +10,13 @@ import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { arrowsUpDownSquare } from '@lucide/lab';
 import { getMetroArrivalsByStop, type Exit } from '@/lib/metro/api';
+import { getBizkaibusArrivals } from '@/lib/bizkaibus/api';
 
 interface Schedule {
     lineId: string;
     destination: string;
     etaMinutes: number;
-    agency: 'metro' | 'bilbobus' | 'renfe';
+    agency: 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe';
     platform?: string;
     wagons?: number;
     duration?: number;
@@ -28,7 +29,7 @@ export default function StationPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const stopId = (params.id as string).replace(/[12]$/, ''); // Normalizar sin plataforma
-    const agency = (searchParams.get('agency') || 'metro') as 'metro' | 'bilbobus' | 'renfe';
+    const agency = (searchParams.get('agency') || 'metro') as 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe';
 
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();
     const { calculateDistance, location } = useGeolocation();
@@ -90,6 +91,23 @@ export default function StationPage() {
                     agency: 'bilbobus'
                 }));
                 setSchedules(transformed);
+            } else if (agency === 'bizkaibus') {
+                console.log('[Station Page] Loading Bizkaibus arrivals for stop:', stopId);
+                const response = await getBizkaibusArrivals(stopId);
+                console.log('[Station Page] Bizkaibus response:', response);
+                if (response.status === 'OK') {
+                    const transformed: Schedule[] = response.arrivals.map(arrival => ({
+                        lineId: arrival.lineId,
+                        destination: arrival.destination,
+                        etaMinutes: arrival.etaMinutes,
+                        agency: 'bizkaibus'
+                    }));
+                    console.log('[Station Page] Transformed schedules:', transformed);
+                    setSchedules(transformed);
+                } else {
+                    console.warn('[Station Page] Bizkaibus response not OK:', response.status, response.error);
+                    setSchedules([]);
+                }
             } else if (agency === 'renfe') {
                 // For Renfe show available lines and a CTA to search itinerarios
                 setSchedules([]);
@@ -168,7 +186,7 @@ export default function StationPage() {
                 <div className="max-w-2xl mx-auto px-4 py-3">
                     <div className="flex items-center justify-between mb-3">
                         <button
-                            onClick={() => router.back()}
+                            onClick={() => router.push(`/?tab=${agency}`)}
                             className="p-2 rounded-xl hover:bg-slate-100 active:scale-90 transition-all"
                         >
                             <ArrowLeft className="w-5 h-5 text-slate-600" />
@@ -200,8 +218,14 @@ export default function StationPage() {
                     <h1 className="text-xl font-bold text-slate-900 mb-1">{stopDetails.name}</h1>
 
                     <div className="flex items-center gap-3 text-xs">
-                        <div className={`px-2 py-1 rounded-lg font-semibold text-white ${agency === 'metro' ? 'bg-orange-500' : 'bg-red-600'}`}>
-                            {agency === 'metro' ? 'Metro Bilbao' : 'Bilbobus'}
+                        <div className={`px-2 py-1 rounded-lg font-semibold text-white ${
+                            agency === 'metro' ? 'bg-[#373737]' : 
+                            agency === 'bizkaibus' ? 'bg-green-600' : 
+                            agency === 'bilbobus' ? 'bg-red-600' : 'bg-purple-600'
+                        }`}>
+                            {agency === 'metro' ? 'Metro Bilbao' : 
+                             agency === 'bizkaibus' ? 'Bizkaibus' :
+                             agency === 'bilbobus' ? 'Bilbobus' : 'Renfe'}
                         </div>
                         {distance && (
                             <div className="flex items-center gap-1 text-slate-500">
@@ -312,6 +336,33 @@ export default function StationPage() {
                                 {schedules.map((schedule, idx) => (
                                     <TransportCard
                                         key={idx}
+                                        agency={schedule.agency}
+                                        lineId={schedule.lineId}
+                                        destination={schedule.destination}
+                                        etaMinutes={schedule.etaMinutes}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {agency === 'bizkaibus' && (
+                    <div className="space-y-3">
+                        <h2 className="text-sm font-semibold text-slate-600 px-1">Próximos autobuses</h2>
+                        {schedules.length === 0 ? (
+                            <div className="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
+                                    <Clock className="w-8 h-8 text-green-600" />
+                                </div>
+                                <p className="text-sm text-slate-700 font-semibold">Sin servicio actualmente</p>
+                                <p className="text-xs text-slate-500 mt-1">No hay autobuses previstos en esta parada</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2.5">
+                                {schedules.map((schedule, idx) => (
+                                    <TransportCard
+                                        key={`bizkaibus-${schedule.lineId}-${idx}`}
                                         agency={schedule.agency}
                                         lineId={schedule.lineId}
                                         destination={schedule.destination}
