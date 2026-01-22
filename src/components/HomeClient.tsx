@@ -12,7 +12,7 @@ import { useGeolocation } from '@/context/GeolocationContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { getNearbyStops, searchBilbobusStops, getAllBilbobusLines } from '@/app/actions';
 import { searchStops } from '@/lib/shared/stopSearch';
-import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, Construction, MapPin, List } from 'lucide-react';
+import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, Construction, MapPin, Map, List, AlertTriangle } from 'lucide-react';
 import { BilbobusLine, BilbobusStop } from '@/lib/bilbobus/api';
 import { StopLocation } from '@/types/transport';
 import { useLastSearch } from '@/hooks/useLastSearch';
@@ -30,6 +30,8 @@ export default function HomeClient() {
     const [isLoadingNearby, setIsLoadingNearby] = useState(false);
     const [activeTab, setActiveTab] = useState<'favorites' | 'nearby'>('favorites');
     const [activeTransport, setActiveTransport] = useState<TransportType>('metro');
+    const [showIncidentsModal, setShowIncidentsModal] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Hooks para guardar las últimas búsquedas
     const { lastSearch: lastMetroSearch, saveSearch: saveMetroSearch } = useLastSearch<{ origin: StopLocation, dest: StopLocation }>('metro');
@@ -76,6 +78,33 @@ export default function HomeClient() {
     const [bilbobusLines, setBilbobusLines] = useState<BilbobusLine[]>([]);
     const [bilbobusSearch, setBilbobusSearch] = useState('');
     const [bilbobusResults, setBilbobusResults] = useState<BilbobusStop[]>([]);
+
+    // Swipe to refresh handler
+    const handleRefresh = useCallback(async () => {
+        if (isRefreshing) return;
+        setIsRefreshing(true);
+        
+        // Forzar recarga de favoritos/cercanas
+        if (activeTab === 'nearby' && location) {
+            setIsLoadingNearby(true);
+            try {
+                const results = await getNearbyStops(location.lat, location.lon, 2);
+                setNearbyStops(results.map(r => ({
+                    id: r.id,
+                    name: r.name,
+                    agency: (r.agency || 'metro') as 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe',
+                    lat: r.lat || 0,
+                    lon: r.lon || 0
+                })));
+            } catch (err) {
+                console.error('Error refreshing nearby stops:', err);
+            } finally {
+                setIsLoadingNearby(false);
+            }
+        }
+        
+        setTimeout(() => setIsRefreshing(false), 500);
+    }, [isRefreshing, activeTab, location]);
 
     // Load Bilbobus lines
     useEffect(() => {
@@ -311,10 +340,34 @@ export default function HomeClient() {
             {/* Metro Content */}
             {activeTransport === 'metro' && (
                 <div className="animate-fadeIn px-4 sm:px-6 lg:px-8">
+                    <div className="max-w-lg mx-auto pt-2 pb-1 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <img src="/logoMetro.svg" alt="Metro Bilbao" className="w-4 h-4 object-contain" />
+                            <span>Metro Bilbao</span>
+                        </div>
+                        <button
+                            onClick={() => setShowIncidentsModal(true)}
+                            className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                            aria-label="Ver incidencias"
+                        >
+                            <AlertTriangle className="w-4 h-4 text-slate-400 hover:text-orange-500 transition-colors" />
+                        </button>
+                    </div>
+
                     {/* Search Card - Minimalista estilo Apple con borde naranja */}
-                    <div className="bg-white text-slate-900 rounded-3xl shadow-sm mb-6 border-2 mt-2 border-orange-500">
+                    <div className="bg-white text-slate-900 rounded-3xl shadow-sm mb-4 border-2 mt-2 border-orange-500">
                         <div className="max-w-lg mx-auto p-6">
-                            <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-4">Planifica tu ruta</h2>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Planifica tu ruta</h2>
+                                <button
+                                    onClick={() => router.push('/metro-map')}
+                                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center"
+                                    aria-label="Ver mapa del metro"
+                                    title="Ver mapa del metro"
+                                >
+                                    <Map className="w-4 h-4 text-slate-600" />
+                                </button>
+                            </div>
                             <div className="space-y-3">
                                 {/* Origin */}
                                 <div className="relative">
@@ -408,16 +461,6 @@ export default function HomeClient() {
                                     <Search className="w-4 h-4" />
                                     {t('searchRoute')}
                                 </button>
-
-                                {/* Metro Map Button */}
-                                <button
-                                    onClick={() => router.push('/metro-map')}
-                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-base transition-all active:scale-[0.98] shadow-sm"
-                                >
-                                    <MapPin className="w-4 h-4" />
-                                    Ver mapa del metro
-                                </button>
-
                             </div>
                         </div>
                     </div>
@@ -516,11 +559,15 @@ export default function HomeClient() {
 
             {/* Common Tabs Section */}
             {(activeTransport === 'metro' || activeTransport === 'bilbobus') && (
-                <main className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
-                    {activeTransport === 'metro' && <MetroIncidents />}
+                <main className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+                    {isRefreshing && (
+                        <div className="flex justify-center py-2 animate-fadeIn">
+                            <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                        </div>
+                    )}
 
                     {/* Section Title */}
-                    <div className="mt-2 mb-3">
+                    <div className="mt-1 mb-2">
                         <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Mis estaciones</h3>
                     </div>
 
@@ -626,6 +673,30 @@ export default function HomeClient() {
                 activeTransport={activeTransport}
                 onTransportChange={setActiveTransport}
             />
+
+            {/* Incidents Modal */}
+            {showIncidentsModal && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+                    <div 
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        onClick={() => setShowIncidentsModal(false)}
+                    />
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden animate-slideUp">
+                        <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-slate-900">Avisos Metro Bilbao</h2>
+                            <button
+                                onClick={() => setShowIncidentsModal(false)}
+                                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        <div className="p-4 overflow-y-auto max-h-[calc(80vh-60px)]">
+                            <MetroIncidents />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

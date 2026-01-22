@@ -62,7 +62,7 @@ export function MetroIncidents() {
     const hasServiceIssues = (incidents?.serviceIssues?.length || 0) > 0;
 
     return (
-        <div className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+        <div className={`rounded-xl overflow-hidden transition-all duration-300 ${
             hasServiceIssues 
                 ? 'bg-red-50 border border-red-200' 
                 : 'bg-amber-50 border border-amber-200'
@@ -70,23 +70,23 @@ export function MetroIncidents() {
             {/* Header - Always visible */}
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full p-4 flex items-center justify-between text-left"
+                className="w-full p-3 flex items-center justify-between text-left"
             >
                 <div className="flex items-center gap-3">
                     {hasServiceIssues ? (
-                        <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                            <AlertTriangle className="w-5 h-5 text-red-600" />
+                        <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                            <AlertTriangle className="w-4 h-4 text-red-600" />
                         </div>
                     ) : (
-                        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                            <Construction className="w-5 h-5 text-amber-600" />
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                            <Construction className="w-4 h-4 text-amber-600" />
                         </div>
                     )}
                     <div>
-                        <h3 className={`font-semibold ${hasServiceIssues ? 'text-red-800' : 'text-amber-800'}`}>
+                        <h3 className={`text-sm font-semibold ${hasServiceIssues ? 'text-red-800' : 'text-amber-800'}`}>
                             {hasServiceIssues ? 'Avisos de servicio' : 'Avisos de instalaciones'}
                         </h3>
-                        <p className={`text-sm ${hasServiceIssues ? 'text-red-600' : 'text-amber-600'}`}>
+                        <p className={`text-xs ${hasServiceIssues ? 'text-red-600' : 'text-amber-600'}`}>
                             {totalIssues} {totalIssues === 1 ? 'aviso activo' : 'avisos activos'}
                         </p>
                     </div>
@@ -102,19 +102,19 @@ export function MetroIncidents() {
                         <X className="w-4 h-4" />
                     </button>
                     {isExpanded ? (
-                        <ChevronUp className={`w-5 h-5 ${hasServiceIssues ? 'text-red-500' : 'text-amber-500'}`} />
+                        <ChevronUp className={`w-4 h-4 ${hasServiceIssues ? 'text-red-500' : 'text-amber-500'}`} />
                     ) : (
-                        <ChevronDown className={`w-5 h-5 ${hasServiceIssues ? 'text-red-500' : 'text-amber-500'}`} />
+                        <ChevronDown className={`w-4 h-4 ${hasServiceIssues ? 'text-red-500' : 'text-amber-500'}`} />
                     )}
                 </div>
             </button>
 
             {/* Expanded Content */}
             {isExpanded && (
-                <div className="px-4 pb-4 space-y-3 animate-fadeIn">
+                <div className="px-3 pb-3 space-y-2 animate-fadeIn">
                     {/* Service Issues */}
                     {incidents?.serviceIssues?.map((issue, idx) => (
-                        <div key={`service-${idx}`} className="p-3 rounded-xl bg-white border border-red-100">
+                        <div key={`service-${idx}`} className="p-2.5 rounded-lg bg-white border border-red-100">
                             <div className="flex items-start gap-2">
                                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                                 <div>
@@ -136,7 +136,7 @@ export function MetroIncidents() {
 
                     {/* Installation Issues */}
                     {incidents?.installationIssues?.map((issue, idx) => (
-                        <div key={`install-${idx}`} className="p-3 rounded-xl bg-white border border-amber-100">
+                        <div key={`install-${idx}`} className="p-2.5 rounded-lg bg-white border border-amber-100">
                             <div className="flex items-start gap-2">
                                 <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                                 <div>

@@ -211,8 +211,8 @@ export function RouteContent() {
         return (
             <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-orange-500 to-red-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                        <Train className="w-8 h-8 text-white" />
+                    <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto mb-4 animate-pulse shadow-sm">
+                        <img src="/logo.png" alt="BilboTrans" className="w-9 h-9 object-contain" />
                     </div>
                     <p className="text-slate-600 font-medium">Cargando ruta...</p>
                 </div>
@@ -323,8 +323,13 @@ export function RouteContent() {
                             {arrivals.slice(0, 6).map((arrival, idx) => (
                                 <div
                                     key={`${arrival.lineId}-${arrival.destination}-${idx}`}
-                                    className={`p-4 ${idx === 0 ? 'bg-orange-50' : 'hover:bg-slate-50'} transition-colors`}
+                                    className={`p-4 ${idx === 0 ? 'bg-orange-50 border-l-4 border-orange-500' : 'hover:bg-slate-50'} transition-colors relative`}
                                 >
+                                    {idx === 0 && (
+                                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wide">
+                                            Próximo
+                                        </span>
+                                    )}
                                     <div className="flex items-center gap-3">
                                         {/* Tiempo - Cuadro grande */}
                                         <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 ${idx === 0 ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-700'}`}>
@@ -351,11 +356,6 @@ export function RouteContent() {
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-3 text-xs text-slate-500">
-                                                <span className="flex items-center gap-1">
-                                                    <Clock className="w-3 h-3" />
-                                                    {arrival.time}
-                                                </span>
-                                                <span>•</span>
                                                 <span>{arrival.platform}</span>
                                                 {arrival.wagons && arrival.wagons > 0 && (
                                                     <>

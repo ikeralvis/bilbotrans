@@ -35,8 +35,8 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                 setError(null);
                 try {
                     const arrivals = await getMetroArrivalsByStop(stopId);
-                    const l1 = arrivals.filter(a => a.lineId.includes('L1')).slice(0, 2);
-                    const l2 = arrivals.filter(a => a.lineId.includes('L2')).slice(0, 2);
+                    const l1 = arrivals.filter(a => a.lineId.includes('L1')).slice(0, 3);
+                    const l2 = arrivals.filter(a => a.lineId.includes('L2')).slice(0, 3);
 
                     setTrainsL1(l1.map(a => ({ destination: a.destination, etaMinutes: a.etaMinutes, lineId: a.lineId })));
                     setTrainsL2(l2.map(a => ({ destination: a.destination, etaMinutes: a.etaMinutes, lineId: a.lineId })));
@@ -77,16 +77,32 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
         return match ? match[0] : lineId;
     };
 
-    const renderTrainRow = (train: TrainInfo, lineColor: string) => (
-        <div className="flex items-center justify-between gap-1 text-xs">
-            <div className="flex items-center gap-1 min-w-0">
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white shrink-0 ${lineColor}`}>
-                    {getCleanLineId(train.lineId)}
+    const getLineColor = (lineId: string): string => {
+        if (lineId.includes('L1')) return 'bg-orange-500';
+        if (lineId.includes('L2')) return 'bg-emerald-500';
+        if (lineId.includes('L3')) return 'bg-purple-500';
+        return 'bg-slate-500';
+    };
+
+    const getEtaStyle = (etaMinutes: number): string => {
+        if (etaMinutes <= 2) return 'text-red-500 animate-pulse';
+        if (etaMinutes <= 8) return 'text-orange-500';
+        return 'text-emerald-600';
+    };
+
+    const renderTrainRow = (train: TrainInfo) => (
+        <div className="flex items-center gap-2 py-1.5">
+            <span className={`w-6 h-6 rounded-full text-[10px] font-bold text-white flex items-center justify-center shrink-0 ${getLineColor(train.lineId)}`}>
+                {getCleanLineId(train.lineId)}
+            </span>
+            <div className="flex-1 min-w-0 flex items-baseline gap-1">
+                <span className={`text-2xl font-black ${getEtaStyle(train.etaMinutes)} leading-none`}>
+                    {train.etaMinutes <= 0 ? '0' : train.etaMinutes}
                 </span>
-                <span className="text-slate-600 truncate">{train.destination}</span>
+                <span className="text-xs text-slate-500 font-medium">min</span>
             </div>
-            <span className={`font-bold shrink-0 ${train.etaMinutes <= 5 ? 'text-red-500' : 'text-slate-800'}`}>
-                {train.etaMinutes <= 0 ? 'Aquí' : `${train.etaMinutes}'`}
+            <span className="text-sm font-medium text-slate-700 truncate flex-shrink-0 max-w-[80px]">
+                {train.destination}
             </span>
         </div>
     );
@@ -94,9 +110,29 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
     const renderContent = () => {
         if (isLoading) {
             return (
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="h-8 bg-slate-100 rounded animate-pulse" />
-                    <div className="h-8 bg-slate-100 rounded animate-pulse" />
+                <div className="grid grid-cols-2 gap-3 divide-x divide-slate-200">
+                    <div className="space-y-2 pr-1.5">
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-slate-200 animate-pulse" />
+                            <div className="flex-1">
+                                <div className="h-7 w-12 bg-slate-200 rounded animate-pulse" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-slate-200 animate-pulse" />
+                            <div className="flex-1">
+                                <div className="h-7 w-12 bg-slate-200 rounded animate-pulse" />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="space-y-2 pl-1.5">
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-slate-200 animate-pulse" />
+                            <div className="flex-1">
+                                <div className="h-7 w-12 bg-slate-200 rounded animate-pulse" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         }
@@ -119,32 +155,33 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                 <div className="space-y-1">
                     {trainsL1.map((train, idx) => (
                         <div key={`biz-${train.destination}-${idx}`}>
-                            {renderTrainRow(train, 'bg-green-600')}
+                            {renderTrainRow(train)}
                         </div>
                     ))}
                 </div>
             );
         }
 
+        // Metro: mostrar por líneas en columnas separadas
         return (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 divide-x divide-slate-200">
                 {/* Línea 1 */}
                 {trainsL1.length > 0 && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 pr-1.5">
                         {trainsL1.map((train, idx) => (
                             <div key={`l1-${train.destination}-${idx}`}>
-                                {renderTrainRow(train, 'bg-orange-500')}
+                                {renderTrainRow(train)}
                             </div>
                         ))}
                     </div>
                 )}
-
+                
                 {/* Línea 2 */}
                 {trainsL2.length > 0 && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 pl-1.5">
                         {trainsL2.map((train, idx) => (
                             <div key={`l2-${train.destination}-${idx}`}>
-                                {renderTrainRow(train, 'bg-green-600')}
+                                {renderTrainRow(train)}
                             </div>
                         ))}
                     </div>
@@ -177,24 +214,21 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
     return (
         <button
             onClick={onTap}
-            className={`w-full group p-3 rounded-xl bg-white border border-slate-200 
-                     ${getHoverBorder()} hover:shadow-sm active:scale-[0.98] 
+            className={`w-full group p-4 rounded-2xl bg-white border border-slate-200 
+                     ${getHoverBorder()} hover:shadow-md active:scale-[0.98] 
                      transition-all duration-150 text-left`}
         >
             {/* Header */}
-            <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${getAgencyBg()}`}>
-                        {getAgencyIcon()}
-                    </div>
-                    <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-slate-700 transition-colors">
+                    <h3 className="text-base font-bold text-slate-900 truncate group-hover:text-slate-700 transition-colors">
                         {name}
                     </h3>
                 </div>
                 {distance !== null && (
-                    <div className="flex items-center gap-0.5 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                         <MapPin className="w-3 h-3 text-slate-400" />
-                        <span className="text-[10px] font-medium text-slate-500">
+                        <span className="text-xs font-medium text-slate-500">
                             {distance < 1 ? `${(distance * 1000).toFixed(0)}m` : `${distance.toFixed(1)}km`}
                         </span>
                     </div>

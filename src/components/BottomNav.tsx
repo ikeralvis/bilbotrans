@@ -56,9 +56,9 @@ interface BottomNavProps {
 
 export function BottomNav({ activeTransport, onTransportChange }: BottomNavProps) {
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
-            <div className="max-w-lg mx-auto px-2">
-                <div className="flex items-center justify-around py-2">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-3 safe-area-bottom">
+            <div className="max-w-lg mx-auto">
+                <div className="flex items-center justify-around py-2 px-1 rounded-2xl bg-white/70 border border-white/40 shadow-[0_10px_30px_rgba(15,23,42,0.12)] backdrop-blur-xl">
                     {navItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = activeTransport === item.id;
@@ -72,9 +72,9 @@ export function BottomNav({ activeTransport, onTransportChange }: BottomNavProps
                                     flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl
                                     transition-all duration-200 min-w-18
                                     ${isActive
-                                        ? `${item.bgColor} ${item.color}`
+                                        ? `bg-white/70 ${item.color} shadow-sm`
                                         : item.available
-                                            ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                                            ? 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                                             : 'text-slate-300 cursor-not-allowed'
                                     }
                                 `}
