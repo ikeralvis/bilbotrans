@@ -1,2 +1,0 @@
-fare_id,origin_id,destination_id
-Ocasional,1,1
