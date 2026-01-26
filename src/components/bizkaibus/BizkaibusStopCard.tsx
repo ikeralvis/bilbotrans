@@ -52,7 +52,7 @@ export default function BizkaibusStopCard({ stopId, stopName, municipality }: Bi
 
     const handleToggleFavorite = () => {
         if (isFavorite) {
-            removeFavorite(stopId, 'bizkaibus');
+            removeFavorite(stopId);
         } else {
             addFavorite({
                 stopId: stopId,

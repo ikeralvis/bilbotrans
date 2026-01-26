@@ -13,10 +13,18 @@ export interface BilbobusArrival {
     etaDisplay: string;
 }
 
+export interface RouteVariant {
+    id: string;           // "01_SEM_IDA", "01A_SEM_VLT"
+    name: string;         // Full descriptive name
+    direction: 'IDA' | 'VUELTA' | 'OTHER';
+    stops: string[];      // Ordered stop IDs for this variant
+}
+
 export interface BilbobusLine {
     id: string;
     name: string;
-    stops: string[];
+    variants: RouteVariant[];
+    allStops: string[];   // All unique stops across all variants
 }
 
 export interface BilbobusStop {

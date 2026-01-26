@@ -129,7 +129,7 @@ export default function StationPage() {
         if (!stopDetails) return;
 
         if (isFav) {
-            await removeFavorite(stopId, agency);
+            await removeFavorite(stopId);
         } else {
             await addFavorite({
                 stopId,

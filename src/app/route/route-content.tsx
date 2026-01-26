@@ -174,7 +174,7 @@ export function RouteContent() {
         const isFav = isFavorite(stop.id, stop.agency);
 
         if (isFav) {
-            removeFavorite(stop.id, stop.agency);
+            removeFavorite(stop.id);
         } else {
             addFavorite({
                 stopId: stop.id,

@@ -158,7 +158,7 @@ export default function UserPage() {
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => removeFavorite(fav.stopId, fav.agency)}
+                                        onClick={() => removeFavorite(fav.stopId)}
                                         className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                                     >
                                         <Heart className="w-4 h-4 fill-current" />

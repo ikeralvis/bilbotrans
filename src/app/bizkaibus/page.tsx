@@ -124,7 +124,7 @@ export default function BizkaibusPage() {
                                     <BizkaibusStopCard
                                         key={`${fav.id}-${key}`}
                                         stopId={fav.id}
-                                        stopName={stopData?.name || fav.name}
+                                        stopName={stopData?.name || fav.name || 'Parada sin nombre'}
                                         municipality={stopData?.municipality}
                                     />
                                 );

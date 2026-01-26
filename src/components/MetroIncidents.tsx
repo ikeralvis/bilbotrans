@@ -24,12 +24,16 @@ interface IncidentsData {
     installationIssues: Incident[];
 }
 
-export function MetroIncidents() {
+interface Props {
+    isEmbedded?: boolean;
+}
+
+export function MetroIncidents({ isEmbedded = false }: Props) {
     const { language } = useLanguage();
     const [incidents, setIncidents] = useState<IncidentsData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(isEmbedded); // Auto-expand when embedded
     const [dismissed, setDismissed] = useState(false);
 
     useEffect(() => {
@@ -53,13 +57,89 @@ export function MetroIncidents() {
         return () => clearInterval(interval);
     }, [language]);
 
-    if (isLoading || error || dismissed) return null;
+    if (isLoading) {
+        if (isEmbedded) {
+            return (
+                <div className="text-center py-8">
+                    <div className="w-6 h-6 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto"></div>
+                    <p className="text-sm text-slate-500 mt-2">Cargando avisos...</p>
+                </div>
+            );
+        }
+        return null;
+    }
+    
+    if (error || dismissed) return null;
     
     const totalIssues = (incidents?.serviceIssues?.length || 0) + (incidents?.installationIssues?.length || 0);
     
-    if (totalIssues === 0) return null;
+    if (totalIssues === 0) {
+        if (isEmbedded) {
+            return (
+                <div className="text-center py-8">
+                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                        <span className="text-2xl">✓</span>
+                    </div>
+                    <p className="text-sm font-medium text-green-700">Sin avisos activos</p>
+                    <p className="text-xs text-slate-500 mt-1">El servicio funciona con normalidad</p>
+                </div>
+            );
+        }
+        return null;
+    }
 
     const hasServiceIssues = (incidents?.serviceIssues?.length || 0) > 0;
+
+    // Embedded mode - just show the content without header
+    if (isEmbedded) {
+        return (
+            <div className="space-y-3">
+                {/* Service Issues */}
+                {incidents?.serviceIssues?.map((issue, idx) => (
+                    <div key={`service-${idx}`} className="p-3 rounded-xl bg-red-50 border border-red-200">
+                        <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                                <AlertCircle className="w-4 h-4 text-red-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-slate-900">{issue.title}</p>
+                                {issue.line && issue.line.length > 0 && (
+                                    <div className="flex gap-1 mt-2">
+                                        {issue.line.map((l) => (
+                                            <span key={l} className="px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-bold">
+                                                {l}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+
+                {/* Installation Issues */}
+                {incidents?.installationIssues?.map((issue, idx) => (
+                    <div key={`install-${idx}`} className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                        <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                                <Info className="w-4 h-4 text-amber-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-slate-900">{issue.title}</p>
+                                {issue.station?.code && (
+                                    <span className="inline-block mt-2 px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">
+                                        📍 Estación: {issue.station.code}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    // Normal mode with expandable header
 
     return (
         <div className={`rounded-xl overflow-hidden transition-all duration-300 ${

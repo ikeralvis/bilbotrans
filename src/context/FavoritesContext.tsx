@@ -5,20 +5,25 @@ import React, { createContext, useContext, useState, useEffect, useMemo, ReactNo
 export interface Favorite {
     id: string;
     stopId: string;
-    name: string;
+    name?: string;
+    stopName?: string;
     agency: 'metro' | 'bilbobus' | 'bizkaibus' | 'renfe';
     lat?: number;
     lon?: number;
     // Optional metadata
     lineId?: string;
     destination?: string;
+    metadata?: {
+        selectedLines?: string[];
+        [key: string]: any;
+    };
     createdAt: number;
 }
 
 interface FavoritesContextType {
     favorites: Favorite[];
     addFavorite: (stop: Omit<Favorite, 'id' | 'createdAt'>) => Promise<void>;
-    removeFavorite: (stopId: string, agency: string) => Promise<void>;
+    removeFavorite: (id: string) => Promise<void>;
     isFavorite: (stopId: string, agency: string) => boolean;
     isLoading: boolean;
 }
@@ -77,10 +82,8 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
         setFavorites(prev => [...prev, newFavorite]);
     };
 
-    const removeFavorite = async (stopId: string, agency: string) => {
-        setFavorites(prev =>
-            prev.filter(fav => !(fav.stopId === stopId && fav.agency === agency))
-        );
+    const removeFavorite = async (id: string) => {
+        setFavorites(prev => prev.filter(fav => fav.id !== id));
     };
 
     const isFavorite = (stopId: string, agency: string) => {

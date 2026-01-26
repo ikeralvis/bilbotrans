@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FavoriteStopCard } from '@/components/FavoriteStopCard';
 import { NearbyStops } from '@/components/NearbyStops';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { MetroIncidents } from '@/components/MetroIncidents';
 import { BottomNav, TransportType } from '@/components/BottomNav';
 import { useFavorites } from '@/context/FavoritesContext';
@@ -13,11 +12,12 @@ import { useLanguage } from '@/context/LanguageContext';
 import { getNearbyStops, getAllBilbobusLines } from '@/app/actions';
 import { searchStops } from '@/lib/shared/stopSearch';
 import { searchBizkaibusStops, type BizkaibusStopResult } from '@/lib/bizkaibus/search';
-import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, MapPin, Map, List, AlertTriangle } from 'lucide-react';
+import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, MapPin, Map, AlertTriangle, Plus } from 'lucide-react';
 import { BilbobusLine, BilbobusStop } from '@/lib/bilbobus/api';
 import { StopLocation } from '@/types/transport';
 import { useLastSearch } from '@/hooks/useLastSearch';
 import dynamic from 'next/dynamic';
+import FavoriteConfigModal from '@/components/bilbobus/FavoriteConfigModal';
 
 const RenfeSection = dynamic(() => import('@/components/RenfeSection').then(m => m.RenfeSection), { ssr: false });
 
@@ -32,6 +32,7 @@ export default function HomeClient() {
     const [activeTab, setActiveTab] = useState<'favorites' | 'nearby'>('favorites');
     const [activeTransport, setActiveTransport] = useState<TransportType>('metro');
     const [showIncidentsModal, setShowIncidentsModal] = useState(false);
+    const [showBilbobusFavModal, setShowBilbobusFavModal] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Hooks para guardar las últimas búsquedas
@@ -204,6 +205,21 @@ export default function HomeClient() {
         return () => clearTimeout(delayDebounceFn);
     }, [destination, selectedDest, activeTransport]);
 
+    // Buscar paradas de Bilbobus - BÚSQUEDA LOCAL (sin BD)
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (bilbobusSearch.length >= 2 && activeTransport === 'bilbobus') {
+                // Búsqueda LOCAL en el JSON
+                const { searchBilbobusStops } = require('@/lib/bilbobus/client-search');
+                const results = searchBilbobusStops(bilbobusSearch, 15);
+                setBilbobusResults(results);
+            } else {
+                setBilbobusResults([]);
+            }
+        }, 300);
+        return () => clearTimeout(delayDebounceFn);
+    }, [bilbobusSearch, activeTransport]);
+
     // Buscar paradas de Bizkaibus - BÚSQUEDA LOCAL (sin BD)
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
@@ -332,7 +348,7 @@ export default function HomeClient() {
                 <FavoriteStopCard
                     key={fav.id}
                     stopId={fav.stopId}
-                    name={fav.name}
+                    name={fav.name || fav.stopName || 'Parada sin nombre'}
                     agency={fav.agency}
                     lat={fav.lat}
                     lon={fav.lon}
@@ -343,28 +359,6 @@ export default function HomeClient() {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
-            {/* Header - Minimalista sin margin */}
-            <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
-                <div className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-                            <img src="/logo.png" alt="BilboTrans" className="w-7 h-7 object-contain" />
-                        </div>
-                        <span className="text-lg font-bold text-slate-900">BilboTrans</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <LanguageSwitcher />
-                        <button
-                            onClick={() => router.push('/user')}
-                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center"
-                            title="Mi cuenta"
-                        >
-                            👤
-                        </button>
-                    </div>
-                </div>
-            </header>
-
             {/* Metro Content */}
             {activeTransport === 'metro' && (
                 <div className="animate-fadeIn">
@@ -490,7 +484,7 @@ export default function HomeClient() {
                                 <button
                                     onClick={handleSearch}
                                     disabled={!selectedOrigin || !selectedDest}
-                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-orange-600 disabled:bg-slate-200 text-white disabled:text-slate-400 font-semibold text-base transition-all active:scale-[0.98] disabled:cursor-not-allowed shadow-sm"
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl hover:bg-orange-600 disabled:bg-slate-200 text-white font-semibold text-base transition-all active:scale-[0.98] disabled:cursor-not-allowed shadow-sm"
                                     style={{ backgroundColor: '#f14e2d' }}
                                 >
                                     <Search className="w-4 h-4" />
@@ -505,32 +499,50 @@ export default function HomeClient() {
             {/* Bilbobus Content */}
             {activeTransport === 'bilbobus' && (
                 <div className="animate-fadeIn">
-                    <div className="bg-red-600 text-white px-4 sm:px-6 lg:px-8 py-6 shadow-md">
-                        <div className="max-w-lg mx-auto">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-                                    <Bus className="w-5 h-5 text-white" />
+                    {/* Red Background Container with rounded bottom corners */}
+                    <div className="relative" style={{ backgroundColor: '#dc2626', height: '200px', borderBottomLeftRadius: '30px', borderBottomRightRadius: '30px' }}>
+                        {/* Header with Logo */}
+                        <div className="px-4 sm:px-6 lg:px-8 pt-3">
+                            <div className="max-w-lg mx-auto flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                                        <Bus className="w-6 h-6 text-white" />
+                                    </div>
+                                    <span className="font-extrabold text-white text-lg">Bilbobus</span>
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-bold">Bilbobus</h2>
-                                    <p className="text-red-100 text-sm">Autobuses de Bilbao</p>
-                                </div>
+                                <button
+                                    onClick={() => router.push('/bilbobus/lineas')}
+                                    className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+                                    aria-label="Ver todas las líneas"
+                                >
+                                <Bus className="w-5 h-5 text-white mr-2" />
+                                <span className="font-semibold text-white">Líneas</span>
+                                </button>
                             </div>
+                        </div>
+                    </div>
 
+                    {/* Floating White Search Panel */}
+                    <div className="px-4 sm:px-6 lg:px-8 relative" style={{ marginTop: '-125px', zIndex: 10 }}>
+                        <div className="max-w-lg mx-auto bg-white rounded-[30px] p-6 shadow-xl">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Buscar parada o línea</h2>
+                            </div>
+                            
                             {/* Search Input */}
-                            <div className="relative">
-                                <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-1 border border-white/20 focus-within:bg-white/20 transition-all">
-                                    <Search className="w-4 h-4 text-red-100" />
+                            <div className="relative mb-4">
+                                <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100 transition-all">
+                                    <Search className="w-4 h-4 text-slate-400" />
                                     <input
                                         type="text"
                                         value={bilbobusSearch}
                                         onChange={(e) => setBilbobusSearch(e.target.value)}
-                                        placeholder="Busca una parada o línea..."
-                                        className="flex-1 py-2 text-sm text-white bg-transparent border-none focus:outline-none placeholder:text-red-100/50"
+                                        placeholder="Nombre de parada, línea..."
+                                        className="flex-1 text-base text-slate-900 bg-transparent border-none focus:outline-none placeholder:text-slate-400 font-medium"
                                         style={{ fontSize: 16 }}
                                     />
                                     {bilbobusSearch && (
-                                        <button onClick={() => setBilbobusSearch('')} className="text-red-100">
+                                        <button onClick={() => setBilbobusSearch('')} className="text-slate-400 hover:text-slate-600">
                                             <X className="w-4 h-4" />
                                         </button>
                                     )}
@@ -564,29 +576,14 @@ export default function HomeClient() {
                                 )}
                             </div>
 
-                            {/* Line List Quick Links */}
-                            <div className="mt-4 overflow-x-auto pb-2 scrollbar-hide">
-                                <div className="flex gap-2">
-                                    {bilbobusLines.slice(0, 10).map(line => (
-                                        <button
-                                            key={line.id}
-                                            onClick={() => router.push(`/lines/bilbobus/${line.id}`)}
-                                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 border border-white/5"
-                                        >
-                                            <span className="w-5 h-5 rounded bg-white text-red-600 flex items-center justify-center text-[10px]">
-                                                {line.id}
-                                            </span>
-                                            {line.id}
-                                        </button>
-                                    ))}
-                                    <button
-                                        onClick={() => router.push('/lines/bilbobus')}
-                                        className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors shrink-0 flex items-center gap-1"
-                                    >
-                                        <List className="w-3 h-3" /> Ver todas
-                                    </button>
-                                </div>
-                            </div>
+                            {/* Search Button */}
+                            <button
+                                onClick={() => bilbobusSearch.length >= 2 && bilbobusResults.length > 0 && handleStopSelect(bilbobusResults[0].id, 'bilbobus')}
+                                disabled={bilbobusSearch.length < 2 || bilbobusResults.length === 0}
+                                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-200 text-white font-semibold text-base transition-all active:scale-[0.98] disabled:cursor-not-allowed shadow-sm"
+                            >
+                                Buscar
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -601,9 +598,18 @@ export default function HomeClient() {
                         </div>
                     )}
 
-                    {/* Section Title */}
-                    <div className="mt-1 mb-2">
-                        <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Mis estaciones</h3>
+                    {/* Section Title with Add Button */}
+                    <div className="mt-1 mb-2 flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Favoritos</h3>
+                        {activeTransport === 'bilbobus' && (
+                            <button
+                                onClick={() => setShowBilbobusFavModal(true)}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                Añadir
+                            </button>
+                        )}
                     </div>
 
                     {/* Quick Tabs */}
@@ -837,7 +843,7 @@ export default function HomeClient() {
                                         <FavoriteStopCard
                                             key={`${fav.agency}-${fav.stopId}`}
                                             stopId={fav.stopId}
-                                            name={fav.name}
+                                            name={fav.name || fav.stopName || 'Parada sin nombre'}
                                             agency={fav.agency}
                                             lat={fav.lat}
                                             lon={fav.lon}
@@ -893,11 +899,17 @@ export default function HomeClient() {
                             </button>
                         </div>
                         <div className="p-4 overflow-y-auto max-h-[calc(80vh-60px)]">
-                            <MetroIncidents />
+                            <MetroIncidents isEmbedded />
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Bilbobus Favorites Modal */}
+            <FavoriteConfigModal
+                isOpen={showBilbobusFavModal}
+                onClose={() => setShowBilbobusFavModal(false)}
+            />
         </div>
     );
 }

@@ -285,7 +285,7 @@ export function RenfeSection() {
                                 <FavoriteStopCard
                                     key={f.id}
                                     stopId={f.stopId}
-                                    name={f.name}
+                                    name={f.name || f.stopName || 'Estación sin nombre'}
                                     agency={f.agency}
                                     lat={f.lat}
                                     lon={f.lon}

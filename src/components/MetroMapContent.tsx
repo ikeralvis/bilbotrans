@@ -5,6 +5,9 @@ import L from 'leaflet';
 import { Train as TrainIcon } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
+// Fix Leaflet tile loading issues
+import { useEffect } from 'react';
+
 // Import station data
 import stationsData from '@/data/metro/stations.json';
 

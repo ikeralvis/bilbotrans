@@ -58,7 +58,7 @@ export default function BizkaibusStopDetail({ stop }: BizkaibusStopDetailProps) 
 
     const handleToggleFavorite = () => {
         if (isFavorite) {
-            removeFavorite(stop.id, 'bizkaibus');
+            removeFavorite(stop.id);
         } else {
             addFavorite({
                 stopId: stop.id,
