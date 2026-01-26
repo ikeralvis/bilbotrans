@@ -1,5 +1,7 @@
 // Service Worker para BilboTrans
-const CACHE_NAME = 'bilbotrans-v1';
+// Incrementa esta versión cada vez que hagas cambios importantes
+const SW_VERSION = '2';
+const CACHE_NAME = `bilbotrans-v${SW_VERSION}`;
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -29,6 +31,13 @@ self.addEventListener('activate', (event) => {
     })
   );
   self.clients.claim();
+});
+
+// Escuchar mensajes del cliente
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Estrategia: Network first, fallback to cache
