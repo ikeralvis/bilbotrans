@@ -4,7 +4,7 @@ on:
   schedule:
     # Lunes a Viernes, de 7:00 a 10:50 cada 10 minutos (hora UTC)
     # 7-11 AM en España (UTC+1) = 6-10 AM UTC en invierno
-    - cron: '0,10,20,30,40,50 6-10 * * 1-5'
+    - cron: '0,10,20,30,40,50 6-13 * * 1-5'
   workflow_dispatch: # Permite ejecución manual desde GitHub UI
 
 jobs:

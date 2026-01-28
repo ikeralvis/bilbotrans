@@ -62,28 +62,38 @@ export async function POST(request: NextRequest) {
     const incidents = await incidentsResponse.json();
     const serviceIssues = incidents.serviceIssues || [];
     
-    // Filtrar solo incidencias que aparecen en la barra (importantes)
-    // Excluye cosas como ascensores rotos, solo avisos críticos de servicio
-    const importantIssues = serviceIssues.filter(
-      (issue: any) => issue.isInIssuesBar === true && issue.type === 'service_issue'
+    // Filtrar incidencias importantes según criterios:
+    // 1. stations === 'General' O
+    // 2. type === 'service_issue' O 
+    // 3. isInIssuesBar === true
+    const importantIssues = serviceIssues.filter((issue: any) => 
+      issue.stations === 'General' || 
+      issue.type === 'service_issue' || 
+      issue.isInIssuesBar === true
     );
 
-    // Solo enviar notificaciones para incidencias de servicio importantes
+    // SIEMPRE notificar todas las incidencias activas (sin anti-duplicados)
     if (importantIssues.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'No hay incidencias de servicio importantes',
+        message: 'No hay incidencias importantes activas',
         sent: 0,
       });
     }
 
-    // Obtener incidencias ya notificadas (desde KV storage o similar)
-    // Por ahora, simplemente notificamos todas las incidencias activas
-    // En producción, deberías implementar un sistema para trackear cuáles ya fueron enviadas
-
     const notifications = [];
 
+    // Procesar TODAS las incidencias importantes (cada 10 min)
     for (const issue of importantIssues) {
+      // Crear información detallada de la notificación
+      const stationInfo = issue.stations && issue.stations !== 'General' ? `Estación: ${issue.stations}` : '';
+      const lineInfo = issue.line && issue.line.length > 0 ? `Línea: ${issue.line.join(', ')}` : '';
+      const locationInfo = [stationInfo, lineInfo].filter(Boolean).join(' - ');
+      
+      const detailedMessage = locationInfo ? 
+        `${issue.title}\n${locationInfo}` : 
+        issue.title;
+
       // Crear notificación
       const notification: OneSignalNotification = {
         app_id: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID!,
@@ -95,13 +105,15 @@ export async function POST(request: NextRequest) {
           es: 'Aviso de Metro Bilbao',
         },
         contents: {
-          en: issue.title,
-          es: issue.title,
+          en: detailedMessage,
+          es: detailedMessage,
         },
         data: {
           type: 'metro_incident',
           incidentId: issue.createdAt,
           url: '/metro-map',
+          station: issue.stations || '',
+          line: issue.line || [],
         },
       };
 
@@ -127,6 +139,7 @@ export async function POST(request: NextRequest) {
       message: `Procesadas ${importantIssues.length} incidencias importantes`,
       sent: notifications.filter((n) => n.status === 'sent').length,
       details: notifications,
+      criteria: 'stations=General OR type=service_issue OR isInIssuesBar=true'
     });
   } catch (error) {
     console.error('Error en check-alerts:', error);
