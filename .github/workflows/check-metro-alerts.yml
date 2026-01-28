@@ -2,9 +2,9 @@ name: Check Metro Alerts
 
 on:
   schedule:
-    # Lunes a Viernes, de 7:00 a 10:50 cada 10 minutos (hora UTC)
-    # 7-11 AM en España (UTC+1) = 6-10 AM UTC en invierno
-    - cron: '0,10,20,30,40,50 6-13 * * 1-5'
+    # GitHub Actions (backup): cada 30 minutos de 7-14h España (6-13 UTC)
+    # Para más frecuencia, usar cron-job.org cada 10 min
+    - cron: '0,30 6-13 * * 1-5'
   workflow_dispatch: # Permite ejecución manual desde GitHub UI
 
 jobs:

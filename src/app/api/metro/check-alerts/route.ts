@@ -86,13 +86,19 @@ export async function POST(request: NextRequest) {
     // Procesar TODAS las incidencias importantes (cada 10 min)
     for (const issue of importantIssues) {
       // Crear información detallada de la notificación
-      const stationInfo = issue.stations && issue.stations !== 'General' ? `Estación: ${issue.stations}` : '';
-      const lineInfo = issue.line && issue.line.length > 0 ? `Línea: ${issue.line.join(', ')}` : '';
-      const locationInfo = [stationInfo, lineInfo].filter(Boolean).join(' - ');
+      let messageParts = [issue.title];
       
-      const detailedMessage = locationInfo ? 
-        `${issue.title}\n${locationInfo}` : 
-        issue.title;
+      // Añadir estación si existe y no está vacía
+      if (issue.stations && issue.stations.trim()) {
+        messageParts.push(`Estación: ${issue.stations}`);
+      }
+      
+      // Añadir líneas si existen
+      if (issue.line && issue.line.length > 0) {
+        messageParts.push(`Línea: ${issue.line.join(', ')}`);
+      }
+      
+      const detailedMessage = messageParts.join('\n');
 
       // Crear notificación
       const notification: OneSignalNotification = {
