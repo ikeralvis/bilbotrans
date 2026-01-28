@@ -1,0 +1,31 @@
+name: Check Metro Alerts
+
+on:
+  schedule:
+    # Lunes a Viernes, de 7:00 a 8:50 cada 10 minutos (hora UTC)
+    # 7-9 AM en España (UTC+1) = 6-8 AM UTC en invierno, 5-7 AM UTC en verano
+    # Ajusta según tu zona horaria
+    - cron: '0,10,20,30,40,50 6-7 * * 1-5'  # UTC - ajustar según temporada
+  workflow_dispatch: # Permite ejecución manual desde GitHub UI
+
+jobs:
+  check-alerts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check for Metro Bilbao service alerts
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET_TOKEN }}" \
+            https://bilbotrans.vercel.app/api/metro/check-alerts)
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+          
+          if [ $http_code -ne 200 ]; then
+            echo "Error checking alerts"
+            exit 1
+          fi

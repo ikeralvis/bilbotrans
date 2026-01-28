@@ -110,3 +110,34 @@ async function syncFavorites() {
     console.error('Error sincronizando favoritos:', error);
   }
 }
+
+// Push notifications
+self.addEventListener('push', (event) => {
+  if (event.data) {
+    const data = event.data.json();
+    const options = {
+      body: data.body || 'Nuevo aviso de Metro Bilbao',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-96x96.png',
+      tag: 'metro-alert',
+      requireInteraction: true,
+      data: {
+        url: data.url || '/',
+      },
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Metro Bilbao', options)
+    );
+  }
+});
+
+// Click en notificación
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url || '/')
+  );
+});
+

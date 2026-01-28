@@ -1,0 +1,157 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+// Este endpoint puede ser llamado por un cron job externo (ej: GitHub Actions, Vercel Cron)
+// para verificar incidencias y enviar notificaciones push
+
+interface OneSignalNotification {
+  app_id: string;
+  included_segments?: string[];
+  filters?: any[];
+  headings: { en: string; es: string };
+  contents: { en: string; es: string };
+  data?: any;
+}
+
+async function sendOneSignalNotification(notification: OneSignalNotification) {
+  const ONESIGNAL_API_KEY = process.env.ONESIGNAL_REST_API_KEY;
+  const ONESIGNAL_APP_ID = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+
+  if (!ONESIGNAL_API_KEY || !ONESIGNAL_APP_ID) {
+    throw new Error('OneSignal no está configurado');
+  }
+
+  const response = await fetch('https://onesignal.com/api/v1/notifications', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Basic ${ONESIGNAL_API_KEY}`,
+    },
+    body: JSON.stringify({
+      ...notification,
+      app_id: ONESIGNAL_APP_ID,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Error enviando notificación: ${error}`);
+  }
+
+  return response.json();
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Verificar autenticación (puedes usar un token secreto)
+    const authHeader = request.headers.get('authorization');
+    const expectedToken = process.env.CRON_SECRET_TOKEN;
+
+    if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    // Obtener incidencias actuales
+    const incidentsResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/metro/incidents?lang=es`
+    );
+    
+    if (!incidentsResponse.ok) {
+      throw new Error('Error obteniendo incidencias');
+    }
+
+    const incidents = await incidentsResponse.json();
+    const serviceIssues = incidents.serviceIssues || [];
+    
+    // Filtrar solo incidencias que aparecen en la barra (importantes)
+    // Excluye cosas como ascensores rotos, solo avisos críticos de servicio
+    const importantIssues = serviceIssues.filter(
+      (issue: any) => issue.isInIssuesBar === true && issue.type === 'service_issue'
+    );
+
+    // Solo enviar notificaciones para incidencias de servicio importantes
+    if (importantIssues.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No hay incidencias de servicio importantes',
+        sent: 0,
+      });
+    }
+
+    // Obtener incidencias ya notificadas (desde KV storage o similar)
+    // Por ahora, simplemente notificamos todas las incidencias activas
+    // En producción, deberías implementar un sistema para trackear cuáles ya fueron enviadas
+
+    const notifications = [];
+
+    for (const issue of importantIssues) {
+      // Crear notificación
+      const notification: OneSignalNotification = {
+        app_id: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID!,
+        filters: [
+          { field: 'tag', key: 'metro_alerts', relation: '=', value: 'enabled' },
+        ],
+        headings: {
+          en: 'Metro Bilbao Service Alert',
+          es: 'Aviso de Metro Bilbao',
+        },
+        contents: {
+          en: issue.title,
+          es: issue.title,
+        },
+        data: {
+          type: 'metro_incident',
+          incidentId: issue.createdAt,
+          url: '/metro-map',
+        },
+      };
+
+      try {
+        const result = await sendOneSignalNotification(notification);
+        notifications.push({
+          title: issue.title,
+          status: 'sent',
+          result,
+        });
+      } catch (error) {
+        console.error('Error enviando notificación:', error);
+        notifications.push({
+          title: issue.title,
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Procesadas ${importantIssues.length} incidencias importantes`,
+      sent: notifications.filter((n) => n.status === 'sent').length,
+      details: notifications,
+    });
+  } catch (error) {
+    console.error('Error en check-alerts:', error);
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Error desconocido',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// Endpoint GET para testing (solo en desarrollo)
+export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'No disponible en producción' }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    message: 'Endpoint de verificación de alertas',
+    usage: 'POST /api/metro/check-alerts con Bearer token en Authorization header',
+    env: {
+      hasOneSignalAppId: !!process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID,
+      hasOneSignalApiKey: !!process.env.ONESIGNAL_REST_API_KEY,
+      hasCronSecret: !!process.env.CRON_SECRET_TOKEN,
+    },
+  });
+}
