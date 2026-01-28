@@ -19,7 +19,12 @@ export function useOneSignal() {
       }
 
       try {
-        await OneSignal.init(ONESIGNAL_CONFIG);
+        // Inicializar OneSignal
+        await OneSignal.init({
+          appId: ONESIGNAL_CONFIG.appId,
+          allowLocalhostAsSecureOrigin: true,
+        });
+        
         setIsInitialized(true);
 
         // Verificar estado de suscripción

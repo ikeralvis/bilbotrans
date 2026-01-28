@@ -1,6 +1,6 @@
 // Service Worker para BilboTrans
 // Incrementa esta versión cada vez que hagas cambios importantes
-const SW_VERSION = '2';
+const SW_VERSION = '3';
 const CACHE_NAME = `bilbotrans-v${SW_VERSION}`;
 const urlsToCache = [
   '/',
@@ -47,6 +47,11 @@ self.addEventListener('fetch', (event) => {
 
   // Skip cross-origin requests
   if (url.origin !== location.origin) {
+    return;
+  }
+
+  // No cachear las rutas de OneSignal
+  if (url.pathname.includes('OneSignal') || url.pathname.includes('onesignal')) {
     return;
   }
 

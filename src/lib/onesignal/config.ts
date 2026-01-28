@@ -3,7 +3,7 @@ export const ONESIGNAL_CONFIG = {
   appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || '',
   allowLocalhostAsSecureOrigin: true,
   serviceWorkerParam: { scope: '/' },
-  serviceWorkerPath: 'OneSignalSDKWorker.js',
+  serviceWorkerPath: '/OneSignalSDKWorker.js',
 };
 
 // Verificar si OneSignal está configurado
