@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
-// Clave para marcar que ya se actualizó en esta sesión
-const UPDATE_APPLIED_KEY = 'pwa_update_applied';
+// Clave para marcar que ya se actualizó (localStorage persiste entre pestañas)
+const UPDATE_APPLIED_KEY = 'pwa_last_update_time';
+const UPDATE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hora sin mostrar popup después de actualizar
 
 export function PWAClient() {
     const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -12,15 +13,14 @@ export function PWAClient() {
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-            // Si acabamos de actualizar (en los últimos 10 segundos), no mostrar el popup
-            const lastUpdate = sessionStorage.getItem(UPDATE_APPLIED_KEY);
-            if (lastUpdate) {
-                const timeSinceUpdate = Date.now() - parseInt(lastUpdate);
-                if (timeSinceUpdate < 10000) { // 10 segundos
-                    console.log('PWA: Skipping registration, just updated');
+            // Si actualizamos recientemente (últimas 1h), no mostrar popup
+            const lastUpdateTime = localStorage.getItem(UPDATE_APPLIED_KEY);
+            if (lastUpdateTime) {
+                const timeSinceUpdate = Date.now() - parseInt(lastUpdateTime);
+                if (timeSinceUpdate < UPDATE_COOLDOWN_MS) {
+                    console.log('PWA: Skipping popup, updated recently');
                     return;
                 }
-                sessionStorage.removeItem(UPDATE_APPLIED_KEY);
             }
 
             navigator.serviceWorker
@@ -67,8 +67,8 @@ export function PWAClient() {
     const handleUpdate = () => {
         console.log('PWA Update: Starting update process');
         
-        // Marcar que vamos a actualizar
-        sessionStorage.setItem(UPDATE_APPLIED_KEY, Date.now().toString());
+        // Marcar que actualizamos ahora (localStorage persiste 1 hora)
+        localStorage.setItem(UPDATE_APPLIED_KEY, Date.now().toString());
         setUpdateAvailable(false);
 
         if (registration?.waiting) {

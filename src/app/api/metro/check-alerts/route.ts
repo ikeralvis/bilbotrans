@@ -9,6 +9,9 @@ interface OneSignalNotification {
   filters?: any[];
   headings: { en: string; es: string };
   contents: { en: string; es: string };
+  big_picture?: string;
+  large_icon?: string;
+  ios_attachments?: { image: string };
   data?: any;
 }
 
@@ -113,6 +116,12 @@ export async function POST(request: NextRequest) {
         contents: {
           en: detailedMessage,
           es: detailedMessage,
+        },
+        // Icono para la notificación
+        big_picture: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://bilbotrans.vercel.app'}/icons/icon-512x512.png`,
+        large_icon: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://bilbotrans.vercel.app'}/icons/icon-192x192.png`,
+        ios_attachments: {
+          image: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://bilbotrans.vercel.app'}/icons/icon-192x192.png`,
         },
         data: {
           type: 'metro_incident',
