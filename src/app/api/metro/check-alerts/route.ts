@@ -139,19 +139,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Endpoint GET para testing (solo en desarrollo)
+// Endpoint GET para verificar estado (disponible en producción para debugging)
 export async function GET(request: NextRequest) {
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json({ error: 'No disponible en producción' }, { status: 404 });
-  }
-
   return NextResponse.json({
-    message: 'Endpoint de verificación de alertas',
-    usage: 'POST /api/metro/check-alerts con Bearer token en Authorization header',
-    env: {
+    message: 'Endpoint de verificación de alertas Metro Bilbao',
+    usage: 'POST con Authorization: Bearer <token>',
+    timestamp: new Date().toISOString(),
+    config: {
       hasOneSignalAppId: !!process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID,
       hasOneSignalApiKey: !!process.env.ONESIGNAL_REST_API_KEY,
       hasCronSecret: !!process.env.CRON_SECRET_TOKEN,
+      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'not set',
     },
   });
 }

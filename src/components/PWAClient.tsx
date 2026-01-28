@@ -3,17 +3,34 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
+// Clave para marcar que ya se actualizó en esta sesión
+const UPDATE_APPLIED_KEY = 'pwa_update_applied';
+
 export function PWAClient() {
     const [updateAvailable, setUpdateAvailable] = useState(false);
     const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            // Si acabamos de actualizar, no mostrar el popup
+            const justUpdated = sessionStorage.getItem(UPDATE_APPLIED_KEY);
+            if (justUpdated) {
+                sessionStorage.removeItem(UPDATE_APPLIED_KEY);
+                return; // No registrar listeners, ya actualizamos
+            }
+
             navigator.serviceWorker
                 .register('/sw.js', { scope: '/' })
                 .then((reg) => {
                     setRegistration(reg);
                     console.log('Service Worker registered');
+
+                    // Si ya hay un worker esperando, mostrar el popup
+                    if (reg.waiting) {
+                        console.log('SW waiting found on load');
+                        setUpdateAvailable(true);
+                        return;
+                    }
 
                     // Escuchar actualizaciones
                     reg.addEventListener('updatefound', () => {
@@ -21,7 +38,6 @@ export function PWAClient() {
                         if (newWorker) {
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Nueva versión disponible - mostrar notificación
                                     console.log('New version available');
                                     setUpdateAvailable(true);
                                 }
@@ -29,12 +45,12 @@ export function PWAClient() {
                         }
                     });
 
-                    // Chequear actualizaciones cada 5 minutos (en vez de 30 segundos)
+                    // Chequear actualizaciones cada 10 minutos
                     const interval = setInterval(() => {
                         reg.update().catch((error) => {
                             console.error('Error checking for updates:', error);
                         });
-                    }, 300000);  // 5 minutos = 300000ms
+                    }, 600000);  // 10 minutos
 
                     return () => clearInterval(interval);
                 })
@@ -45,30 +61,21 @@ export function PWAClient() {
     }, []);
 
     const handleUpdate = () => {
+        // Marcar que vamos a actualizar para no mostrar popup después del reload
+        sessionStorage.setItem(UPDATE_APPLIED_KEY, 'true');
+        setUpdateAvailable(false);
+
         if (registration?.waiting) {
             // Enviar mensaje al service worker nuevo para que tome el control
             registration.waiting.postMessage({ type: 'SKIP_WAITING' });
             
-            // Ocultar banner inmediatamente para mejor UX
-            setUpdateAvailable(false);
+            // Recargar cuando el nuevo SW tome el control
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
+            }, { once: true });
             
-            // Recargar la página cuando el nuevo SW tome el control
-            let updateActivated = false;
-            const onControllerChange = () => {
-                if (!updateActivated) {
-                    updateActivated = true;
-                    window.location.reload();
-                }
-            };
-            navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-            
-            // Fallback: si no hay cambio de controller en 2 segundos, recargar de todas formas
-            setTimeout(() => {
-                if (!updateActivated) {
-                    updateActivated = true;
-                    window.location.reload();
-                }
-            }, 2000);
+            // Fallback: recargar después de 1 segundo si no hay cambio
+            setTimeout(() => window.location.reload(), 1000);
         } else {
             // Si no hay waiting worker, simplemente recargar
             window.location.reload();
