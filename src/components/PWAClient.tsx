@@ -12,11 +12,15 @@ export function PWAClient() {
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-            // Si acabamos de actualizar, no mostrar el popup
-            const justUpdated = sessionStorage.getItem(UPDATE_APPLIED_KEY);
-            if (justUpdated) {
+            // Si acabamos de actualizar (en los últimos 10 segundos), no mostrar el popup
+            const lastUpdate = sessionStorage.getItem(UPDATE_APPLIED_KEY);
+            if (lastUpdate) {
+                const timeSinceUpdate = Date.now() - parseInt(lastUpdate);
+                if (timeSinceUpdate < 10000) { // 10 segundos
+                    console.log('PWA: Skipping registration, just updated');
+                    return;
+                }
                 sessionStorage.removeItem(UPDATE_APPLIED_KEY);
-                return; // No registrar listeners, ya actualizamos
             }
 
             navigator.serviceWorker
@@ -61,23 +65,34 @@ export function PWAClient() {
     }, []);
 
     const handleUpdate = () => {
-        // Marcar que vamos a actualizar para no mostrar popup después del reload
-        sessionStorage.setItem(UPDATE_APPLIED_KEY, 'true');
+        console.log('PWA Update: Starting update process');
+        
+        // Marcar que vamos a actualizar
+        sessionStorage.setItem(UPDATE_APPLIED_KEY, Date.now().toString());
         setUpdateAvailable(false);
 
         if (registration?.waiting) {
-            // Enviar mensaje al service worker nuevo para que tome el control
+            console.log('PWA Update: Posting SKIP_WAITING message');
+            
+            // Configurar listener antes de enviar mensaje
+            const handleControllerChange = () => {
+                console.log('PWA Update: Controller changed, reloading...');
+                window.location.reload();
+            };
+            
+            navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, { once: true });
+            
+            // Enviar mensaje al service worker
             registration.waiting.postMessage({ type: 'SKIP_WAITING' });
             
-            // Recargar cuando el nuevo SW tome el control
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
+            // Fallback: recargar después de 2 segundos
+            setTimeout(() => {
+                console.log('PWA Update: Fallback reload triggered');
+                navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
                 window.location.reload();
-            }, { once: true });
-            
-            // Fallback: recargar después de 1 segundo si no hay cambio
-            setTimeout(() => window.location.reload(), 1000);
+            }, 2000);
         } else {
-            // Si no hay waiting worker, simplemente recargar
+            console.log('PWA Update: No waiting worker, direct reload');
             window.location.reload();
         }
     };

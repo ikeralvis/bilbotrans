@@ -35,8 +35,18 @@ self.addEventListener('activate', (event) => {
 
 // Escuchar mensajes del cliente
 self.addEventListener('message', (event) => {
+  console.log('SW: Received message:', event.data);
+  
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('SW: SKIP_WAITING received, taking control');
     self.skipWaiting();
+    
+    // Notificar a todos los clientes que el control cambió
+    self.clients.matchAll().then((clients) => {
+      clients.forEach((client) => {
+        client.postMessage({ type: 'SW_UPDATED' });
+      });
+    });
   }
 });
 
@@ -50,8 +60,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // No cachear las rutas de OneSignal
-  if (url.pathname.includes('OneSignal') || url.pathname.includes('onesignal')) {
+  // No cachear las rutas de OneSignal y evitar interferencias
+  if (url.pathname.includes('OneSignal') || 
+      url.pathname.includes('onesignal') ||
+      url.pathname.includes('ServiceWorker') ||
+      url.hostname.includes('onesignal')) {
     return;
   }
 
