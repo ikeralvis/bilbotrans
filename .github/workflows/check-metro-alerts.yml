@@ -2,10 +2,10 @@ name: Check Metro Alerts
 
 on:
   schedule:
-    # Lunes a Viernes, de 7:00 a 8:50 cada 10 minutos (hora UTC)
-    # 7-9 AM en España (UTC+1) = 6-8 AM UTC en invierno, 5-7 AM UTC en verano
+    # Lunes a Viernes, de 7:00 a 10:50 cada 10 minutos (hora UTC)
+    # 7-11 AM en España (UTC+1) = 6-10 AM UTC en invierno, 5-9 AM UTC en verano
     # Ajusta según tu zona horaria
-    - cron: '0,10,20,30,40,50 6-7 * * 1-5'  # UTC - ajustar según temporada
+    - cron: '0,10,20,30,40,50 6-10 * * 1-5'  # UTC - ajustar según temporada
   workflow_dispatch: # Permite ejecución manual desde GitHub UI
 
 jobs:

@@ -121,18 +121,20 @@ export default function HomeClient() {
         setTimeout(() => setIsRefreshing(false), 500);
     }, [isRefreshing, activeTab, location]);
 
-    // Load Bilbobus lines
+    // Load Bilbobus lines - solo cuando se necesite
     useEffect(() => {
-        const loadLines = async () => {
-            try {
-                const lines = await getAllBilbobusLines();
-                setBilbobusLines([...lines].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })));
-            } catch (err) {
-                console.error('Error loading Bilbobus lines:', err);
-            }
-        };
-        loadLines();
-    }, []);
+        if (activeTransport === 'bilbobus' && bilbobusLines.length === 0) {
+            const loadLines = async () => {
+                try {
+                    const lines = await getAllBilbobusLines();
+                    setBilbobusLines([...lines].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })));
+                } catch (err) {
+                    console.error('Error loading Bilbobus lines:', err);
+                }
+            };
+            loadLines();
+        }
+    }, [activeTransport, bilbobusLines.length]);
 
     // Load nearby stops when we have location
     useEffect(() => {
@@ -178,7 +180,7 @@ export default function HomeClient() {
                 setOriginResults([]);
                 setShowOriginDropdown(false);
             }
-        }, 300);
+        }, 500);  // Aumentado a 500ms para reducir requests
         return () => clearTimeout(delayDebounceFn);
     }, [origin, selectedOrigin, activeTransport]);
 
@@ -203,7 +205,7 @@ export default function HomeClient() {
                 setDestResults([]);
                 setShowDestDropdown(false);
             }
-        }, 300);
+        }, 500);  // Aumentado a 500ms para reducir requests
         return () => clearTimeout(delayDebounceFn);
     }, [destination, selectedDest, activeTransport]);
 

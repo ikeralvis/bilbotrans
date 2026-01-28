@@ -29,12 +29,12 @@ export function PWAClient() {
                         }
                     });
 
-                    // Chequear actualizaciones cada 30 segundos
+                    // Chequear actualizaciones cada 5 minutos (en vez de 30 segundos)
                     const interval = setInterval(() => {
                         reg.update().catch((error) => {
                             console.error('Error checking for updates:', error);
                         });
-                    }, 30000);
+                    }, 300000);  // 5 minutos = 300000ms
 
                     return () => clearInterval(interval);
                 })
@@ -49,6 +49,9 @@ export function PWAClient() {
             // Enviar mensaje al service worker nuevo para que tome el control
             registration.waiting.postMessage({ type: 'SKIP_WAITING' });
             
+            // Ocultar banner inmediatamente para mejor UX
+            setUpdateAvailable(false);
+            
             // Recargar la página cuando el nuevo SW tome el control
             let updateActivated = false;
             const onControllerChange = () => {
@@ -58,6 +61,17 @@ export function PWAClient() {
                 }
             };
             navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+            
+            // Fallback: si no hay cambio de controller en 2 segundos, recargar de todas formas
+            setTimeout(() => {
+                if (!updateActivated) {
+                    updateActivated = true;
+                    window.location.reload();
+                }
+            }, 2000);
+        } else {
+            // Si no hay waiting worker, simplemente recargar
+            window.location.reload();
         }
     };
 
