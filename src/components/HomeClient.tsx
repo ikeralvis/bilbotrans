@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FavoriteStopCard } from '@/components/FavoriteStopCard';
 import { NearbyStops } from '@/components/NearbyStops';
 import { MetroIncidents } from '@/components/MetroIncidents';
+import { MetroAlertsConfig } from '@/components/MetroAlertsConfig';
 import { BottomNav, TransportType } from '@/components/BottomNav';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
@@ -12,7 +13,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { getNearbyStops, getAllBilbobusLines } from '@/app/actions';
 import { searchStops } from '@/lib/shared/stopSearch';
 import { searchBizkaibusStops, type BizkaibusStopResult } from '@/lib/bizkaibus/search';
-import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, MapPin, Map, AlertTriangle, Plus } from 'lucide-react';
+import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, MapPin, Map, AlertTriangle, Plus, Bell } from 'lucide-react';
 import { BilbobusLine, BilbobusStop } from '@/lib/bilbobus/api';
 import { StopLocation } from '@/types/transport';
 import { useLastSearch } from '@/hooks/useLastSearch';
@@ -32,6 +33,7 @@ export default function HomeClient() {
     const [activeTab, setActiveTab] = useState<'favorites' | 'nearby'>('favorites');
     const [activeTransport, setActiveTransport] = useState<TransportType>('metro');
     const [showIncidentsModal, setShowIncidentsModal] = useState(false);
+    const [showAlertsConfig, setShowAlertsConfig] = useState(false);
     const [showBilbobusFavModal, setShowBilbobusFavModal] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -371,13 +373,23 @@ export default function HomeClient() {
                                     <img src="/logoMetro.svg" alt="Metro Bilbao" className="h-10 object-contain" />
                                     <span className="font-extrabold text-white text-lg">Metro Bilbao</span>
                                 </div>
-                                <button
-                                    onClick={() => setShowIncidentsModal(true)}
-                                    className="p-2 rounded-lg hover:bg-white/20 transition-colors"
-                                    aria-label="Ver incidencias"
-                                >
-                                    <AlertTriangle className="w-5 h-5 text-white" />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setShowIncidentsModal(true)}
+                                        className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+                                        aria-label="Ver incidencias"
+                                    >
+                                        <AlertTriangle className="w-5 h-5 text-white" />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowAlertsConfig(true)}
+                                        className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+                                        aria-label="Configurar alertas"
+                                        title="Configurar alertas"
+                                    >
+                                        <Bell className="w-5 h-5 text-white" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -904,6 +916,12 @@ export default function HomeClient() {
                     </div>
                 </div>
             )}
+
+            {/* Metro Alerts Configuration Modal */}
+            <MetroAlertsConfig 
+                isOpen={showAlertsConfig} 
+                onClose={() => setShowAlertsConfig(false)} 
+            />
 
             {/* Bilbobus Favorites Modal */}
             <FavoriteConfigModal

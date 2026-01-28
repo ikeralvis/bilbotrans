@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Loader2, RefreshCw, Bell, AlertTriangle } from 'lucide-react';
-import { MetroAlertsConfig } from '@/components/MetroAlertsConfig';
-import { MetroIncidents } from '@/components/MetroIncidents';
+import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 
 // Import station data
 import stationsData from '@/data/metro/stations.json';
@@ -39,8 +37,6 @@ export default function MetroMapPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [showAlertsConfig, setShowAlertsConfig] = useState(false);
-    const [showIncidents, setShowIncidents] = useState(false);
 
     const lines = Object.values(stationsData) as any[];
 
@@ -98,26 +94,12 @@ export default function MetroMapPage() {
                             {trains.length} {trains.length === 1 ? 'tren' : 'trenes'} en circulación
                         </p>
                     </div>
-                </div>2">
+                </div>
+
+                <div className="flex items-center gap-3">
                     {lastUpdate && (
                         <span className="text-xs text-slate-500 hidden sm:inline">
                             Actualizado: {lastUpdate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    )}
-                    <button
-                        onClick={() => setShowIncidents(true)}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                        title="Ver avisos"
-                    >
-                        <AlertTriangle className="w-5 h-5 text-slate-700" />
-                    </button>
-                    <button
-                        onClick={() => setShowAlertsConfig(true)}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                        title="Configurar alertas"
-                    >
-                        <Bell className="w-5 h-5 text-slate-700" />
-                    </button>      Actualizado: {lastUpdate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                     )}
                     <button
@@ -144,38 +126,6 @@ export default function MetroMapPage() {
                     <h3 className="text-xs font-bold text-slate-700 mb-2 font-mono uppercase tracking-wider">Líneas</h3>
                     <div className="space-y-2">
                         {lines.map((line: any) => (
-
-            {/* Modals */}
-            <MetroAlertsConfig 
-                isOpen={showAlertsConfig} 
-                onClose={() => setShowAlertsConfig(false)} 
-            />
-            
-            {/* Modal de incidencias */}
-            {showIncidents && (
-                <>
-                    <div
-                        className="fixed inset-0 bg-black/50 z-50"
-                        onClick={() => setShowIncidents(false)}
-                    />
-                    <div className="fixed inset-x-0 bottom-0 z-50 animate-slideUp">
-                        <div className="bg-white rounded-t-3xl shadow-2xl max-h-[80vh] overflow-y-auto">
-                            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between rounded-t-3xl">
-                                <h2 className="text-lg font-bold text-slate-900">Avisos del Metro</h2>
-                                <button
-                                    onClick={() => setShowIncidents(false)}
-                                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <ArrowLeft className="w-5 h-5 text-slate-600" />
-                                </button>
-                            </div>
-                            <div className="p-4">
-                                <MetroIncidents isEmbedded />
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
                             <div key={line.id} className="flex items-center gap-2">
                                 <div
                                     className="w-3 h-3 rounded-full border border-white shadow-sm"
