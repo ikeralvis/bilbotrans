@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         data: {
           type: 'metro_incident',
           incidentId: issue.createdAt,
-          url: '/metro-map',
+          url: '/metro/map',
           station: issue.stations || '',
           line: issue.line || [],
         },

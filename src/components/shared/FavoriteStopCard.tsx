@@ -71,42 +71,26 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
         }
     }, [stopId, agency]);
 
-    // Función para extraer el nombre de línea limpio (L1, L2, L3)
-    const getCleanLineId = (lineId: string): string => {
-        const regex = /L[1-3]/;
-        const match = regex.exec(lineId);
-        return match ? match[0] : lineId;
-    };
-
-    const getLineColor = (lineId: string): string => {
-        if (lineId.includes('L1')) return 'bg-[#f14e2d]';
-        if (lineId.includes('L2')) return 'bg-[#242324]';
-        if (lineId.includes('L3')) return 'bg-purple-500';
-        return 'bg-slate-500';
-    };
-
-    const getEtaStyle = (etaMinutes: number): string => {
-        if (etaMinutes <= 2) return 'text-red-500 animate-pulse';
-        if (etaMinutes <= 8) return 'text-orange-500';
-        return 'text-emerald-600';
-    };
-
-    const renderTrainRow = (train: TrainInfo) => (
-        <div className="flex items-center gap-2 py-1.5">
-            <span className={`w-6 h-6 rounded-full text-[10px] font-bold text-white flex items-center justify-center shrink-0 ${getLineColor(train.lineId)}`}>
-                {getCleanLineId(train.lineId)}
-            </span>
-            <div className="flex-1 min-w-0 flex items-baseline gap-1">
-                <span className={`text-2xl font-black ${getEtaStyle(train.etaMinutes)} leading-none`}>
+    const renderTrainRow = (train: TrainInfo) => {
+        const isUrgent = train.etaMinutes < 2;
+        return (
+        <div className={`flex items-center justify-between gap-2 py-1 ${isUrgent ? 'animate-pulse' : ''}`}>
+            <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
+                <span className={`text-lg font-bold leading-none ${
+                    isUrgent ? 'text-red-600' : 'text-slate-900'
+                }`}>
                     {train.etaMinutes <= 0 ? '0' : train.etaMinutes}
                 </span>
-                <span className="text-xs text-slate-500 font-medium">min</span>
+                <span className={`text-xs font-medium ${
+                    isUrgent ? 'text-red-500' : 'text-slate-500'
+                }`}>min</span>
             </div>
-            <span className="text-sm font-medium text-slate-700 truncate shrink-0 max-w-20">
+            <span className="text-sm font-medium text-slate-700 truncate max-w-24">
                 {train.destination}
             </span>
         </div>
     );
+    };
 
     const renderContent = () => {
         // Diseño especial para Bizkaibus (estilo de la imagen)
@@ -165,28 +149,14 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
         // Diseño original para Metro
         if (isLoading) {
             return (
-                <div className="grid grid-cols-2 gap-3 divide-x divide-slate-200">
-                    <div className="space-y-2 pr-1.5">
-                        <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 animate-pulse" />
-                            <div className="flex-1">
-                                <div className="h-7 w-12 bg-slate-200 rounded animate-pulse" />
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 animate-pulse" />
-                            <div className="flex-1">
-                                <div className="h-7 w-12 bg-slate-200 rounded animate-pulse" />
-                            </div>
-                        </div>
+                <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 py-1">
+                        <div className="w-8 h-7 bg-slate-200 rounded animate-pulse" />
+                        <div className="flex-1 h-6 bg-slate-200 rounded animate-pulse" />
                     </div>
-                    <div className="space-y-2 pl-1.5">
-                        <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 animate-pulse" />
-                            <div className="flex-1">
-                                <div className="h-7 w-12 bg-slate-200 rounded animate-pulse" />
-                            </div>
-                        </div>
+                    <div className="flex items-center gap-3 py-1">
+                        <div className="w-8 h-7 bg-slate-200 rounded animate-pulse" />
+                        <div className="flex-1 h-6 bg-slate-200 rounded animate-pulse" />
                     </div>
                 </div>
             );
@@ -205,13 +175,19 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
             return null;
         }
 
-        // Metro: mostrar por líneas en columnas separadas
+        // Metro: lista simple pero agrupada por línea
+        const hasBothLines = trainsL1.length > 0 && trainsL2.length > 0;
+        
         return (
-            <div className="grid grid-cols-2 gap-3 divide-x divide-slate-200">
-                {/* Línea 1 */}
+            <div className="space-y-0">
+                {/* Andén 1 - L1 */}
                 {trainsL1.length > 0 && (
-                    <div className="space-y-1 pr-1.5">
-                        {trainsL1.map((train, idx) => (
+                    <div className="space-y-0.5">
+                        <div className="flex items-center gap-2 mb-1">
+                        
+                            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Andén 1</span>
+                        </div>
+                        {trainsL1.slice(0, 2).map((train, idx) => (
                             <div key={`l1-${train.destination}-${idx}`}>
                                 {renderTrainRow(train)}
                             </div>
@@ -219,10 +195,19 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                     </div>
                 )}
                 
-                {/* Línea 2 */}
+                {/* Separador entre andenes */}
+                {hasBothLines && (
+                    <div className="my-2 border-t border-slate-200" />
+                )}
+                
+                {/* Andén 2 - L2 */}
                 {trainsL2.length > 0 && (
-                    <div className="space-y-1 pl-1.5">
-                        {trainsL2.map((train, idx) => (
+                    <div className="space-y-0.5">
+                        <div className="flex items-center gap-2 mb-1">
+                            
+                            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Andén 2</span>
+                        </div>
+                        {trainsL2.slice(0, 2).map((train, idx) => (
                             <div key={`l2-${train.destination}-${idx}`}>
                                 {renderTrainRow(train)}
                             </div>
@@ -243,26 +228,25 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
     return (
         <button
             onClick={onTap}
-            className={`w-full group p-4 rounded-2xl bg-white border transition-all duration-150 text-left ${
+            className={`w-full group p-3 rounded-xl bg-gradient-to-br from-white to-slate-50 border transition-all duration-150 text-left ${
                 agency === 'bizkaibus' 
-                    ? 'border-2 border-slate-200 hover:border-green-500 hover:shadow-lg' 
-                    : `border border-slate-200 ${getHoverBorder()} hover:shadow-md active:scale-[0.98]`
+                    ? 'border-2 border-slate-200 hover:border-green-500 hover:shadow-md' 
+                    : `border border-slate-200 ${getHoverBorder()} hover:shadow-sm active:scale-[0.98]`
             }`}
         >
             {/* Header para Bizkaibus */}
             {agency === 'bizkaibus' && (
-                <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-start gap-2 flex-1 min-w-0">
                         {/* Logo de Bizkaibus */}
-                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 shadow-sm border border-slate-100">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-white flex items-center justify-center shrink-0 shadow-sm border border-slate-100">
                             <Image
                                 src="/logoBizkaibus.png"
                                 alt="Bizkaibus"
-                                width={48}
-                                height={48}
+                                width={40}
+                                height={40}
                                 className="object-contain w-full h-full"
                                 onError={(e) => {
-                                    // Fallback if image doesn't exist
                                     e.currentTarget.style.display = 'none';
                                 }}
                             />
@@ -270,12 +254,9 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                         
                         {/* Nombre de parada */}
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-base font-bold text-slate-900 leading-tight mb-0.5">
+                            <h3 className="text-sm font-bold text-slate-900 leading-tight mb-0">
                                 {name}
                             </h3>
-                            <p className="text-xs font-semibold" style={{ color: '#22533d' }}>
-                                bizkaibus
-                            </p>
                         </div>
                     </div>
                     
@@ -286,23 +267,21 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="p-2.5 rounded-xl bg-slate-100 hover:bg-green-100 transition-colors shrink-0"
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-green-100 transition-colors shrink-0"
                             title="Ver en Google Maps"
                         >
-                            <MapPin className="w-5 h-5 text-slate-600" />
+                            <MapPin className="w-4 h-4 text-slate-600" />
                         </a>
                     )}
                 </div>
             )}
 
-            {/* Header para Metro/Bilbobus (diseño original) */}
+            {/* Header para Metro/Bilbobus */}
             {agency !== 'bizkaibus' && (
-                <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b border-slate-100">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <h3 className="text-base font-bold text-slate-900 truncate group-hover:text-slate-700 transition-colors">
-                            {name}
-                        </h3>
-                    </div>
+                <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-100">
+                    <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-slate-700 transition-colors">
+                        {name}
+                    </h3>
                     {distance !== null && (
                         <div className="flex items-center gap-1 shrink-0">
                             <MapPin className="w-3 h-3 text-slate-400" />

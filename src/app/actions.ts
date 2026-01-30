@@ -22,40 +22,7 @@ interface CacheEntry<T> {
     ttl: number;
 }
 
-// Simple in-memory cache con TTL
-const cache = new Map<string, CacheEntry<any>>();
-
-const getCacheKey = (prefix: string, query: string) => `${prefix}:${query}`;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-
-const getCached = <T>(key: string): T | null => {
-    const entry = cache.get(key);
-    if (!entry) return null;
-
-    if (Date.now() - entry.timestamp > entry.ttl) {
-        cache.delete(key);
-        return null;
-    }
-
-    return entry.data as T;
-};
-
-const setCache = <T>(key: string, data: T, ttl: number = CACHE_TTL) => {
-    cache.set(key, {
-        data,
-        timestamp: Date.now(),
-        ttl,
-    });
-};
-
 export async function getStopDetails(stopId: string, agency: string): Promise<SearchResult | null> {
-    const cacheKey = getCacheKey('stop_details', `${stopId}_${agency}`);
-    const cached = getCached<SearchResult>(cacheKey);
-
-    if (cached) {
-        return cached;
-    }
-
     try {
         // Si es Bizkaibus, usar búsqueda local en JSON (no BD)
         if (agency === 'bizkaibus') {
@@ -74,7 +41,6 @@ export async function getStopDetails(stopId: string, agency: string): Promise<Se
                 }
             };
             
-            setCache(cacheKey, mapped, 15 * 60 * 1000);
             return mapped;
         }
         
@@ -101,7 +67,6 @@ export async function getStopDetails(stopId: string, agency: string): Promise<Se
             metadata: r.metadata
         };
 
-        setCache(cacheKey, mapped, 15 * 60 * 1000); // 15 minutos para detalles
         return mapped;
     } catch (error) {
         console.error('Error getting stop details:', error);
@@ -114,13 +79,6 @@ export async function getNearbyStops(
     lon: number,
     radiusKm: number = 1
 ): Promise<SearchResult[]> {
-    const cacheKey = getCacheKey('nearby_stops', `${lat}_${lon}_${radiusKm}`);
-    const cached = getCached<SearchResult[]>(cacheKey);
-
-    if (cached) {
-        return cached;
-    }
-
     try {
         // Aproximación simple: usar BETWEEN para lat/lon
         // En producción, usar PostGIS para distancia real
@@ -148,7 +106,6 @@ export async function getNearbyStops(
             metadata: r.metadata
         }));
 
-        setCache(cacheKey, mapped, 10 * 60 * 1000); // 10 minutos
         return mapped;
     } catch (error) {
         console.error('Error getting nearby stops:', error);
@@ -157,13 +114,6 @@ export async function getNearbyStops(
 }
 
 export async function getAllStops(): Promise<SearchResult[]> {
-    const cacheKey = getCacheKey('all_stops', 'metro');
-    const cached = getCached<SearchResult[]>(cacheKey);
-
-    if (cached) {
-        return cached;
-    }
-
     try {
         const results = await db.select()
             .from(stops)
@@ -178,7 +128,6 @@ export async function getAllStops(): Promise<SearchResult[]> {
             metadata: r.metadata
         }));
 
-        setCache(cacheKey, mapped, 30 * 60 * 1000);
         return mapped;
     } catch (error) {
         console.error('Error getting all stops:', error);

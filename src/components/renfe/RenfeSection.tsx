@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, ArrowRightLeft, Heart, MapPin, ChevronRight, Clock } from 'lucide-react';
 import { searchRenfeStops, RenfeStop } from '@/lib/renfe/api';
-import { FavoriteStopCard } from './FavoriteStopCard';
+import { FavoriteStopCard } from '@/components/shared/FavoriteStopCard';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useLastSearch } from '@/hooks/useLastSearch';
 
@@ -289,7 +289,7 @@ export function RenfeSection() {
                                     agency={f.agency}
                                     lat={f.lat}
                                     lon={f.lon}
-                                    onTap={() => router.push(`/station/${f.stopId}?agency=renfe`)}
+                                    onTap={() => router.push(`/metro/station/${f.stopId}?agency=renfe`)}
                                 />
                             ))}
                         </div>

@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FavoriteStopCard } from '@/components/FavoriteStopCard';
-import { NearbyStops } from '@/components/NearbyStops';
-import { MetroIncidents } from '@/components/MetroIncidents';
-import { MetroAlertsConfig } from '@/components/MetroAlertsConfig';
-import { BottomNav, TransportType } from '@/components/BottomNav';
+import { FavoriteStopCard } from '@/components/shared/FavoriteStopCard';
+import { NearbyStops } from '@/components/shared/NearbyStops';
+import { MetroIncidents } from '@/components/metro/MetroIncidents';
+import { MetroAlertsConfig } from '@/components/metro/MetroAlertsConfig';
+import { BottomNav, TransportType } from '@/components/shared/BottomNav';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -20,13 +20,13 @@ import { useLastSearch } from '@/hooks/useLastSearch';
 import dynamic from 'next/dynamic';
 import FavoriteConfigModal from '@/components/bilbobus/FavoriteConfigModal';
 
-const RenfeSection = dynamic(() => import('@/components/RenfeSection').then(m => m.RenfeSection), { ssr: false });
+const RenfeSection = dynamic(() => import('@/components/renfe/RenfeSection').then(m => m.RenfeSection), { ssr: false });
 
 export default function HomeClient() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { t } = useLanguage();
-    const { favorites, removeFavorite, isLoading: favLoading } = useFavorites();
+    const { favorites, isLoading: favLoading } = useFavorites();
     const { location, requestLocation, isLoading: geoLoading } = useGeolocation();
     const [nearbyStops, setNearbyStops] = useState<StopLocation[]>([]);
     const [isLoadingNearby, setIsLoadingNearby] = useState(false);
@@ -162,7 +162,7 @@ export default function HomeClient() {
     // Buscar origen - solo paradas de metro en búsqueda de metro
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
-            if (origin.length >= 2 && !selectedOrigin) {
+            if (origin.length >= 1 && !selectedOrigin) {
                 const data = await searchStops(origin);
                 // Filtrar solo paradas de metro cuando estamos en tab de metro
                 const metroOnly = activeTransport === 'metro'
@@ -180,14 +180,14 @@ export default function HomeClient() {
                 setOriginResults([]);
                 setShowOriginDropdown(false);
             }
-        }, 500);  // Aumentado a 500ms para reducir requests
+        }, 300);  // Reducido a 300ms para mejor respuesta
         return () => clearTimeout(delayDebounceFn);
     }, [origin, selectedOrigin, activeTransport]);
 
     // Buscar destino - solo paradas de metro en búsqueda de metro
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
-            if (destination.length >= 2 && !selectedDest) {
+            if (destination.length >= 1 && !selectedDest) {
                 const data = await searchStops(destination);
                 // Filtrar solo paradas de metro cuando estamos en tab de metro
                 const metroOnly = activeTransport === 'metro'
@@ -245,14 +245,23 @@ export default function HomeClient() {
         if (agency === 'bilbobus' && bilbobusSearch) {
             saveBilbobusSearch(bilbobusSearch);
         }
-        router.push(`/station/${stopId}?agency=${agency}`);
+        // Redirigir a la ruta específica de cada transporte
+        if (agency === 'metro') {
+            router.push(`/metro/station/${stopId}`);
+        } else if (agency === 'bilbobus') {
+            router.push(`/bilbobus/stop/${stopId}`);
+        } else if (agency === 'bizkaibus') {
+            router.push(`/bizkaibus/stop/${stopId}`);
+        } else {
+            router.push(`/metro/station/${stopId}?agency=${agency}`);
+        }
     }, [router, bilbobusSearch, saveBilbobusSearch]);
 
     const handleSearch = useCallback(() => {
         if (selectedOrigin && selectedDest) {
             // Guardar búsqueda para la próxima vez
             saveMetroSearch({ origin: selectedOrigin, dest: selectedDest });
-            router.push(`/route?origin=${selectedOrigin.id}&originAgency=${selectedOrigin.agency}&dest=${selectedDest.id}&destAgency=${selectedDest.agency}`);
+            router.push(`/metro/route?origin=${selectedOrigin.id}&originAgency=${selectedOrigin.agency}&dest=${selectedDest.id}&destAgency=${selectedDest.agency}`);
         }
     }, [selectedOrigin, selectedDest, router, saveMetroSearch]);
 
@@ -337,7 +346,9 @@ export default function HomeClient() {
     };
 
     const renderFavorites = () => {
-        if (favorites.length === 0) {
+        const favList = favorites.filter(f => f.agency === activeTransport);
+        
+        if (favList.length === 0) {
             return (
                 <div className="bg-white rounded-xl p-8 text-center border border-slate-100">
                     <Heart className="w-10 h-10 text-slate-200 mx-auto mb-3" />
@@ -346,19 +357,41 @@ export default function HomeClient() {
                 </div>
             );
         }
-        return favorites
-            .filter(f => f.agency === activeTransport)
-            .map((fav) => (
-                <FavoriteStopCard
-                    key={fav.id}
-                    stopId={fav.stopId}
-                    name={fav.name || fav.stopName || 'Parada sin nombre'}
-                    agency={fav.agency}
-                    lat={fav.lat}
-                    lon={fav.lon}
-                    onTap={() => handleStopSelect(fav.stopId, fav.agency)}
-                />
-            ));
+        
+        // Cuadrícula para Metro, lista para otros
+        if (activeTransport === 'metro') {
+            return (
+                <div className="grid grid-cols-2 gap-2">
+                    {favList.map((fav) => (
+                        <FavoriteStopCard
+                            key={fav.id}
+                            stopId={fav.stopId}
+                            name={fav.name || fav.stopName || 'Parada sin nombre'}
+                            agency={fav.agency}
+                            lat={fav.lat}
+                            lon={fav.lon}
+                            onTap={() => handleStopSelect(fav.stopId, fav.agency)}
+                        />
+                    ))}
+                </div>
+            );
+        }
+        
+        return (
+            <div className="space-y-3">
+                {favList.map((fav) => (
+                    <FavoriteStopCard
+                        key={fav.id}
+                        stopId={fav.stopId}
+                        name={fav.name || fav.stopName || 'Parada sin nombre'}
+                        agency={fav.agency}
+                        lat={fav.lat}
+                        lon={fav.lon}
+                        onTap={() => handleStopSelect(fav.stopId, fav.agency)}
+                    />
+                ))}
+            </div>
+        );
     };
 
     return (
@@ -367,7 +400,7 @@ export default function HomeClient() {
             {activeTransport === 'metro' && (
                 <div className="animate-fadeIn">
                     {/* Orange Background Container with rounded bottom corners */}
-                    <div className="relative" style={{ backgroundColor: '#373737', height: '200px', borderBottomLeftRadius: '30px', borderBottomRightRadius: '30px' }}>
+                    <div className="relative" style={{ backgroundColor: '#373737', height: '250px', borderBottomLeftRadius: '30px', borderBottomRightRadius: '30px' }}>
                         {/* Header with Logo */}
                         <div className="px-4 sm:px-6 lg:px-8 pt-3">
                             <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -397,12 +430,12 @@ export default function HomeClient() {
                     </div>
 
                     {/* Floating White Search Panel */}
-                    <div className="px-4 sm:px-6 lg:px-8 relative" style={{ marginTop: '-125px', zIndex: 10 }}>
+                    <div className="px-4 sm:px-6 lg:px-8 relative" style={{ marginTop: '-150px', zIndex: 10 }}>
                         <div className="max-w-lg mx-auto bg-white rounded-[30px] p-6 shadow-xl">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Planifica tu ruta</h2>
                                 <button
-                                    onClick={() => router.push('/metro-map')}
+                                    onClick={() => router.push('/metro/map')}
                                     className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center"
                                     aria-label="Ver mapa del metro"
                                     title="Ver mapa del metro"
@@ -421,17 +454,17 @@ export default function HomeClient() {
                                                 setOrigin(e.target.value);
                                                 if (selectedOrigin) setSelectedOrigin(null);
                                             }}
-                                            onFocus={() => origin.length >= 2 && !selectedOrigin && setShowOriginDropdown(true)}
+                                            onFocus={() => origin.length >= 1 && !selectedOrigin && setShowOriginDropdown(true)}
                                             placeholder={t('whereFrom')}
                                             className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-[#f14e2d] focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
                                             style={{ fontSize: 16 }}
                                         />
-                                        {selectedOrigin && (
+                                        {(origin || selectedOrigin) && (
                                             <button
-                                                onClick={() => { setOrigin(''); setSelectedOrigin(null); }}
-                                                className="p-1 rounded-full hover:bg-slate-200 text-slate-400 transition-colors"
+                                                onClick={() => { setOrigin(''); setSelectedOrigin(null); setShowOriginDropdown(false); }}
+                                                className="p-2 rounded-full hover:bg-slate-200 text-slate-400 transition-colors"
                                             >
-                                                <X className="w-4 h-4" />
+                                                <X className="w-5 h-5" />
                                             </button>
                                         )}
                                     </div>
@@ -469,17 +502,17 @@ export default function HomeClient() {
                                                 setDestination(e.target.value);
                                                 if (selectedDest) setSelectedDest(null);
                                             }}
-                                            onFocus={() => destination.length >= 2 && !selectedDest && setShowDestDropdown(true)}
+                                            onFocus={() => destination.length >= 1 && !selectedDest && setShowDestDropdown(true)}
                                             placeholder={t('whereTo')}
                                             className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-[#f14e2d] focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
                                             style={{ fontSize: 16 }}
                                         />
-                                        {selectedDest && (
+                                        {(destination || selectedDest) && (
                                             <button
-                                                onClick={() => { setDestination(''); setSelectedDest(null); }}
-                                                className="p-1 rounded-full hover:bg-slate-200 text-slate-400 transition-colors"
+                                                onClick={() => { setDestination(''); setSelectedDest(null); setShowDestDropdown(false); }}
+                                                className="p-2 rounded-full hover:bg-slate-200 text-slate-400 transition-colors"
                                             >
-                                                <X className="w-4 h-4" />
+                                                <X className="w-5 h-5" />
                                             </button>
                                         )}
                                     </div>
@@ -612,75 +645,94 @@ export default function HomeClient() {
                         </div>
                     )}
 
-                    {/* Section Title with Add Button */}
-                    <div className="mt-1 mb-2 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Favoritos</h3>
-                        {activeTransport === 'bilbobus' && (
-                            <button
-                                onClick={() => setShowBilbobusFavModal(true)}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                Añadir
-                            </button>
-                        )}
-                    </div>
+                    {/* Metro: Solo mostrar Favoritos */}
+                    {activeTransport === 'metro' && (
+                        <>
+                            {/* Section Title */}
+                            <div className="mt-0.5 mb-2">
+                                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Favoritos</h3>
+                            </div>
 
-                    {/* Quick Tabs */}
-                    <div className="flex gap-2">
-                        {[
-                            { id: 'favorites', icon: Heart, label: t('favorites'), count: favorites.filter(f => f.agency === activeTransport).length },
-                            { id: 'nearby', icon: Navigation, label: t('nearby') },
-                        ].map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = activeTab === tab.id;
-                            const isMetro = activeTransport === 'metro';
-                            let activeColor = 'bg-red-600';
-                            let badgeColor = 'bg-red-100 text-red-600';
-                            if (isMetro) {
-                                activeColor = 'bg-[#f14e2d]';
-                                badgeColor = 'bg-orange-100 text-[#f14e2d]';
-                            }
-
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive
-                                        ? `${activeColor} text-white shadow-sm`
-                                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                        }`}
-                                >
-                                    <Icon className={`w-4 h-4 ${isActive && tab.id === 'favorites' ? 'fill-current' : ''}`} />
-                                    <span>{tab.label}</span>
-                                    {tab.count !== undefined && tab.count > 0 && (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isActive ? 'bg-white/20 text-white' : badgeColor
-                                            }`}>
-                                            {tab.count}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Tab Content */}
-                    {activeTab === 'favorites' && (
-                        <div className="space-y-3 animate-fadeIn">
-                            {favLoading ? (
-                                <div className="py-12 text-center">
-                                    <Loader2 className="w-6 h-6 animate-spin text-slate-300 mx-auto" />
-                                </div>
-                            ) : (
-                                renderFavorites()
-                            )}
-                        </div>
+                            {/* Tab Content */}
+                            <div className="animate-fadeIn">
+                                {favLoading ? (
+                                    <div className="py-8 text-center">
+                                        <Loader2 className="w-5 h-5 animate-spin text-slate-300 mx-auto" />
+                                    </div>
+                                ) : (
+                                    renderFavorites()
+                                )}
+                            </div>
+                        </>
                     )}
 
-                    {activeTab === 'nearby' && (
-                        <div className="animate-fadeIn">
-                            {renderNearbyStops()}
-                        </div>
+                    {/* Bilbobus: Mostrar Favoritos y Cercanas con tabs */}
+                    {activeTransport === 'bilbobus' && (
+                        <>
+                            {/* Section Title with Add Button */}
+                            <div className="mt-1 mb-2 flex items-center justify-between">
+                                <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Favoritos</h3>
+                                <button
+                                    onClick={() => setShowBilbobusFavModal(true)}
+                                    className="flex items-center gap-1 px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Añadir
+                                </button>
+                            </div>
+
+                            {/* Quick Tabs */}
+                            <div className="flex gap-2">
+                                {[
+                                    { id: 'favorites', icon: Heart, label: t('favorites'), count: favorites.filter(f => f.agency === activeTransport).length },
+                                    { id: 'nearby', icon: Navigation, label: t('nearby') },
+                                ].map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = activeTab === tab.id;
+                                    let activeColor = 'bg-red-600';
+                                    let badgeColor = 'bg-red-100 text-red-600';
+
+                                    return (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                                            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive
+                                                ? `${activeColor} text-white shadow-sm`
+                                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                                }`}
+                                        >
+                                            <Icon className={`w-4 h-4 ${isActive && tab.id === 'favorites' ? 'fill-current' : ''}`} />
+                                            <span>{tab.label}</span>
+                                            {tab.count !== undefined && tab.count > 0 && (
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isActive ? 'bg-white/20 text-white' : badgeColor
+                                                    }`}>
+                                                    {tab.count}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Tab Content */}
+                            {activeTab === 'favorites' && (
+                                <div className="space-y-3 animate-fadeIn">
+                                    {favLoading ? (
+                                        <div className="py-12 text-center">
+                                            <Loader2 className="w-6 h-6 animate-spin text-slate-300 mx-auto" />
+                                        </div>
+                                    ) : (
+                                        renderFavorites()
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'nearby' && (
+                                <div className="animate-fadeIn">
+                                    {renderNearbyStops()}
+                                </div>
+                            )}
+                        </>
                     )}
 
                 </main>

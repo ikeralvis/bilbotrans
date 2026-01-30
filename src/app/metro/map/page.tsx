@@ -9,7 +9,7 @@ import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import stationsData from '@/data/metro/stations.json';
 
 // Import map component dynamically to avoid SSR issues
-const MetroMapContent = dynamic(() => import('@/components/MetroMapContent'), {
+const MetroMapContent = dynamic(() => import('@/components/metro/MetroMapContent'), {
     ssr: false,
     loading: () => (
         <div className="flex-1 flex items-center justify-center bg-slate-100">

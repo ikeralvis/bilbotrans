@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getMetroArrivalsByStop } from '@/lib/metro/api';
-import platformsData from '@/data/metro/platforms.json';
 import stationsData from '@/data/metro/stations.json';
 
 export const dynamic = 'force-dynamic';
@@ -16,25 +15,51 @@ interface TrainInfo {
     platform: string;
 }
 
+// Cache en memoria con TTL de 20 segundos
+let trainsCache: { data: any; timestamp: number } | null = null;
+const CACHE_TTL = 20 * 1000; // 20 segundos
+
+// Estaciones estratégicas para muestreo (reduce llamadas de ~29 a ~12)
+// Seleccionadas para cubrir toda la red con menos llamadas
+const STRATEGIC_STATIONS = [
+    'ABA', // Abando (L1+L2)
+    'CAV', // Casco Viejo (L1+L2)
+    'SAN', // San Mamés (L1+L2)
+    'DEU', // Deusto (L1+L2)
+    'ETX', // Etxebarri (L1 terminal)
+    'PLE', // Plentzia (L1 terminal)
+    'BAS', // Basauri (L2 terminal)
+    'KAB', // Kabiezes (L2 terminal)
+    'GUR', // Gurutzeta (L1+L2)
+    'BER', // Berango (L1)
+    'SOP', // Sopela (L1)
+    'SES', // Sestao (L2)
+];
+
 /**
  * Endpoint optimizado que devuelve TODOS los trenes activos
  * con UNA SOLA llamada desde el cliente
+ * Usa cache y muestreo de estaciones para mayor eficiencia
  */
 export async function GET() {
     try {
-        const trains: TrainInfo[] = [];
+        // Verificar cache
+        if (trainsCache && (Date.now() - trainsCache.timestamp) < CACHE_TTL) {
+            return NextResponse.json(trainsCache.data);
+        }
+
         const trainMap = new Map<string, TrainInfo>();
 
-        // Obtener llegadas de todas las estaciones en paralelo
-        const arrivalPromises = platformsData.map(async (station) => {
+        // Obtener llegadas solo de estaciones estratégicas
+        const arrivalPromises = STRATEGIC_STATIONS.map(async (stationCode) => {
             try {
-                const arrivals = await getMetroArrivalsByStop(station.code);
+                const arrivals = await getMetroArrivalsByStop(stationCode);
                 return arrivals.map(arrival => ({
-                    station: station.code,
+                    station: stationCode,
                     ...arrival
                 }));
             } catch (error) {
-                console.error(`Error fetching arrivals for ${station.code}:`, error);
+                console.error(`Error fetching arrivals for ${stationCode}:`, error);
                 return [];
             }
         });
@@ -91,11 +116,17 @@ export async function GET() {
 
         const activeTrains = Array.from(trainMap.values());
 
-        return NextResponse.json({
+        const result = {
             trains: activeTrains,
             count: activeTrains.length,
-            timestamp: new Date().toISOString()
-        });
+            timestamp: new Date().toISOString(),
+            cached: false
+        };
+
+        // Guardar en cache
+        trainsCache = { data: { ...result, cached: true }, timestamp: Date.now() };
+
+        return NextResponse.json(result);
 
     } catch (error) {
         console.error('Error fetching train positions:', error);

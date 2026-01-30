@@ -13,20 +13,8 @@ export interface SearchResult {
     metadata?: any;
 }
 
-const clientCache = new Map<string, { data: SearchResult[]; time: number }>();
-const CACHE_TTL = 60 * 1000; // 1 minuto de caché en cliente
-
 export async function searchStops(query: string): Promise<SearchResult[]> {
-    if (!query || query.length < 2) return [];
-
-    const key = query.toLowerCase();
-    const now = Date.now();
-    const cached = clientCache.get(key);
-
-    // Retornar caché si es válido
-    if (cached && now - cached.time < CACHE_TTL) {
-        return cached.data;
-    }
+    if (!query || query.length < 1) return [];
 
     try {
         // NEXT_PUBLIC_API_URL vacío = misma URL (ej: bilbotrans.vercel.app)
@@ -36,6 +24,7 @@ export async function searchStops(query: string): Promise<SearchResult[]> {
         const response = await fetch(url, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store', // Siempre obtener datos frescos
         });
 
         if (!response.ok) {
@@ -44,7 +33,6 @@ export async function searchStops(query: string): Promise<SearchResult[]> {
         }
 
         const data = await response.json();
-        clientCache.set(key, { data, time: now });
         return data;
     } catch (error) {
         console.error('[searchStops] Fetch error:', error);

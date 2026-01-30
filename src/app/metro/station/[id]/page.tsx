@@ -3,9 +3,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { Heart, ArrowLeft, Clock, Loader2, RefreshCw, MapPin, AlertCircle, DoorClosed, Moon, Icon } from 'lucide-react';
+import { Heart, ArrowLeft, Clock, RefreshCw, MapPin, AlertCircle, DoorClosed, Moon, Icon } from 'lucide-react';
 import { getStopDetails, getBilbobusArrivalsByStop } from '@/app/actions';
-import { TransportCard } from '@/components/TransportCard';
+import { TransportCard } from '@/components/shared/TransportCard';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { arrowsUpDownSquare } from '@lucide/lab';
@@ -39,8 +39,13 @@ export default function StationPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isFav, setIsFav] = useState(false);
 
-    const isFav = stopDetails ? isFavorite(stopId, agency) : false;
+    useEffect(() => {
+        if (stopDetails) {
+            setIsFav(isFavorite(stopId, agency));
+        }
+    }, [stopId, agency, isFavorite, stopDetails]);
     const distance = stopDetails && location ? calculateDistance(stopDetails.lat, stopDetails.lon) : null;
 
     useEffect(() => {
@@ -130,6 +135,7 @@ export default function StationPage() {
 
         if (isFav) {
             await removeFavorite(stopId);
+            setIsFav(false);
         } else {
             await addFavorite({
                 stopId,
@@ -138,6 +144,7 @@ export default function StationPage() {
                 lat: stopDetails.lat,
                 lon: stopDetails.lon,
             });
+            setIsFav(true);
         }
     };
 
@@ -206,10 +213,7 @@ export default function StationPage() {
                                 className="p-2 rounded-xl hover:bg-slate-100 active:scale-90 transition-all"
                             >
                                 <Heart
-                                    className="w-5 h-5"
-                                    fill={isFav ? 'currentColor' : 'none'}
-                                    stroke={isFav ? '#ef4444' : '#cbd5e1'}
-                                    color={isFav ? '#ef4444' : '#cbd5e1'}
+                                    className={`w-5 h-5 transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-slate-300'}`}
                                 />
                             </button>
                         </div>
@@ -251,74 +255,88 @@ export default function StationPage() {
                     </div>
                 )}
 
-                {/* Schedules - Rediseñado minimalista */}
+                {/* Schedules - Rediseño moderno */}
                 {agency === 'metro' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                         {/* Andén 1 */}
-                        <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-                            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 px-4 py-2.5 border-b border-blue-100">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">1</span>
-                                    <span className="font-bold text-slate-900 text-sm">Andén 1</span>
+                        {(schedule1.length > 0 || schedule2.length === 0) && (
+                            <div className="rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm">
+                                <div className="bg-linear-to-r from-blue-500 to-blue-600 px-5 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                                            <span className="text-white font-bold text-lg">1</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-white font-bold text-lg">Andén 1</p>
+                                            <p className="text-blue-100 text-xs">Líneas hacia la zona norte</p>
+                                        </div>
+                                    </div>
                                 </div>
+                                {schedule1.length === 0 ? (
+                                    <div className="text-center py-12 px-4">
+                                        <Moon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                                        <p className="text-sm font-medium text-slate-600">Sin servicio</p>
+                                        <p className="text-xs text-slate-400 mt-1">El andén está cerrado ahora</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 space-y-3">
+                                        {schedule1.map((schedule, idx) => (
+                                            <TransportCard
+                                                key={idx}
+                                                agency={schedule.agency}
+                                                lineId={schedule.lineId}
+                                                destination={schedule.destination}
+                                                etaMinutes={schedule.etaMinutes}
+                                                wagons={schedule.wagons}
+                                                duration={schedule.duration}
+                                                originExits={schedule.originExits}
+                                                destinationExits={schedule.destinationExits}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            {schedule1.length === 0 ? (
-                                <div className="text-center py-8 px-3">
-                                    <Clock className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                    <p className="text-sm font-medium text-slate-600">Sin trenes</p>
-                                    <p className="text-xs text-slate-400 mt-1">Servicio cerrado</p>
-                                </div>
-                            ) : (
-                                <div className="p-3 space-y-2">
-                                    {schedule1.map((schedule, idx) => (
-                                        <TransportCard
-                                            key={idx}
-                                            agency={schedule.agency}
-                                            lineId={schedule.lineId}
-                                            destination={schedule.destination}
-                                            etaMinutes={schedule.etaMinutes}
-                                            wagons={schedule.wagons}
-                                            duration={schedule.duration}
-                                            originExits={schedule.originExits}
-                                            destinationExits={schedule.destinationExits}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        )}
 
                         {/* Andén 2 */}
-                        <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-2.5 border-b border-orange-100">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">2</span>
-                                    <span className="font-bold text-slate-900 text-sm">Andén 2</span>
+                        {(schedule2.length > 0 || schedule1.length === 0) && (
+                            <div className="rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm">
+                                <div className="bg-linear-to-r from-orange-500 to-red-500 px-5 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                                            <span className="text-white font-bold text-lg">2</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-white font-bold text-lg">Andén 2</p>
+                                            <p className="text-orange-100 text-xs">Líneas hacia la zona sur</p>
+                                        </div>
+                                    </div>
                                 </div>
+                                {schedule2.length === 0 ? (
+                                    <div className="text-center py-12 px-4">
+                                        <Moon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                                        <p className="text-sm font-medium text-slate-600">Sin servicio</p>
+                                        <p className="text-xs text-slate-400 mt-1">El andén está cerrado ahora</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 space-y-3">
+                                        {schedule2.map((schedule, idx) => (
+                                            <TransportCard
+                                                key={idx}
+                                                agency={schedule.agency}
+                                                lineId={schedule.lineId}
+                                                destination={schedule.destination}
+                                                etaMinutes={schedule.etaMinutes}
+                                                wagons={schedule.wagons}
+                                                duration={schedule.duration}
+                                                originExits={schedule.originExits}
+                                                destinationExits={schedule.destinationExits}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            {schedule2.length === 0 ? (
-                                <div className="text-center py-8 px-3">
-                                    <Clock className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                    <p className="text-sm font-medium text-slate-600">Sin trenes</p>
-                                    <p className="text-xs text-slate-400 mt-1">Servicio cerrado</p>
-                                </div>
-                            ) : (
-                                <div className="p-3 space-y-2">
-                                    {schedule2.map((schedule, idx) => (
-                                        <TransportCard
-                                            key={idx}
-                                            agency={schedule.agency}
-                                            lineId={schedule.lineId}
-                                            destination={schedule.destination}
-                                            etaMinutes={schedule.etaMinutes}
-                                            wagons={schedule.wagons}
-                                            duration={schedule.duration}
-                                            originExits={schedule.originExits}
-                                            destinationExits={schedule.destinationExits}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        )}
                     </div>
                 )}
 

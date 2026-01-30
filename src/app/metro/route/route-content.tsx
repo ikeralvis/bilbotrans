@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Clock, Heart, RefreshCw, Train, ArrowRightLeft, Info, Bus } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Clock, Heart, RefreshCw, Train, ArrowRightLeft, Info, Bus, TramFront } from 'lucide-react';
 import { searchStops, SearchResult } from '@/lib/shared/stopSearch';
 import { getMetroArrivalsByStop, MetroArrival } from '@/lib/metro/api';
 import { useFavorites } from '@/context/FavoritesContext';
@@ -153,13 +153,36 @@ export function RouteContent() {
     }, [loadRoute]);
 
     const handleRefresh = async () => {
-        if (!originStop) return;
+        if (!originStop || !destStop) return;
         setIsRefreshing(true);
 
         try {
-            if (originStop.agency === 'metro') {
-                const metroArrivals = await getMetroArrivalsByStop(originStop.id);
-                setArrivals(metroArrivals);
+            if (originStop.agency === 'metro' && destStop.agency === 'metro') {
+                // Usar el mismo endpoint que en la búsqueda inicial para mantener consistencia
+                const response = await fetch(`/api/metro/schedule?origin=${originStop.id}&dest=${destStop.id}`);
+                if (response.ok) {
+                    const scheduleData = await response.json();
+                    if (scheduleData.trains && scheduleData.trains.length > 0) {
+                        const convertedArrivals: MetroArrival[] = scheduleData.trains.map((train: RealTimeTrainData) => {
+                            const etaMinutes = train.estimated;
+                            return {
+                                lineId: scheduleData.trip?.line || 'L1',
+                                destination: scheduleData.trip?.toStation?.name || destStop.name,
+                                etaMinutes: etaMinutes,
+                                etaDisplay: etaMinutes > 10 ? train.timeRounded : `${etaMinutes} min`,
+                                platform: train.direction,
+                                wagons: train.wagons,
+                                time: train.timeRounded,
+                                duration: scheduleData.trip?.duration
+                            };
+                        });
+                        setArrivals(convertedArrivals);
+                    }
+                } else {
+                    // Fallback: cargar llegadas de la estación de origen
+                    const metroArrivals = await getMetroArrivalsByStop(originStop.id);
+                    setArrivals(metroArrivals);
+                }
                 setLastUpdate(new Date());
             }
         } catch (err) {
@@ -190,21 +213,9 @@ export function RouteContent() {
         if (originStop && destStop) {
             hasLoadedRef.current = false;
             router.push(
-                `/route?origin=${destStop.id}&originAgency=${destStop.agency}&dest=${originStop.id}&destAgency=${originStop.agency}`
+                `/metro/route?origin=${destStop.id}&originAgency=${destStop.agency}&dest=${originStop.id}&destAgency=${originStop.agency}`
             );
         }
-    };
-
-    const getLineColor = (line: string): string => {
-        if (line.includes('L1')) return 'bg-[#f14e2d]';
-        if (line.includes('L2')) return 'bg-[#242324]';
-        if (line.includes('L3')) return 'bg-blue-600';
-        return 'bg-slate-500';
-    };
-
-    const getCleanLineId = (lineId: string): string => {
-        const match = /L[1-3]/.exec(lineId);
-        return match ? match[0] : lineId;
     };
 
     if (isLoading) {
@@ -325,58 +336,50 @@ export function RouteContent() {
                                     key={`${arrival.lineId}-${arrival.destination}-${idx}`}
                                     className={`p-4 ${idx === 0 ? 'bg-orange-50 border-l-4 border-orange-500' : 'hover:bg-slate-50'} transition-colors relative`}
                                 >
-                                    {idx === 0 && (
-                                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wide">
-                                            Próximo
-                                        </span>
-                                    )}
-                                    <div className="flex items-center gap-3">
-                                        {/* Tiempo - Cuadro grande */}
-                                        <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 ${idx === 0 ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                                            {arrival.etaMinutes <= 10 ? (
-                                                <>
-                                                    <span className="text-xl font-bold leading-none">
-                                                        {arrival.etaMinutes <= 0 ? '0' : arrival.etaMinutes}
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 flex-1">
+                                            {/* Tiempo - Cuadro grande */}
+                                            <div className={`w-16 h-16 rounded-xl flex flex-col items-center justify-center shrink-0 ${idx === 0 ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                                                <span className="text-2xl font-bold leading-none">
+                                                    {arrival.etaMinutes <= 0 ? '0' : arrival.etaMinutes}
+                                                </span>
+                                                <span className="text-xs font-medium opacity-80">min</span>
+                                            </div>
+                                            
+                                            {/* Info central - Destino en grande */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="mb-2">
+                                                    <span className="text-lg font-bold text-slate-900">
+                                                        → {arrival.destination}
                                                     </span>
-                                                    <span className="text-[10px] font-medium opacity-80">min</span>
-                                                </>
-                                            ) : (
-                                                <span className="text-base font-bold leading-tight">{arrival.time}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                    <span>{arrival.platform}</span>
+                                                    {arrival.wagons && arrival.wagons > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <TramFront className="w-3 h-3" />
+                                                            <span>{arrival.wagons}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex flex-col items-end gap-2 shrink-0">
+                                            {/* Hora */}
+                                            {arrival.time && (
+                                                <div className="text-sm font-semibold text-slate-900">
+                                                    {arrival.time}
+                                                </div>
                                             )}
-                                        </div>
-                                        
-                                        {/* Info central */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${getLineColor(arrival.lineId)}`}>
-                                                    {getCleanLineId(arrival.lineId)}
+                                            
+                                            {/* Estado - PRÓXIMO con latido */}
+                                            {idx === 0 && (
+                                                <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-orange-500 text-white text-xs font-bold animate-pulse">
+                                                    PRÓXIMO
                                                 </span>
-                                                <span className="text-sm font-semibold text-slate-900 truncate">
-                                                    → {arrival.destination}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-3 text-xs text-slate-500">
-                                                <span>{arrival.platform}</span>
-                                                {arrival.wagons && arrival.wagons > 0 && (
-                                                    <>
-                                                        <span>•</span>
-                                                        <span>{arrival.wagons} vag.</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Estado */}
-                                        <div className="shrink-0 text-right">
-                                            {idx === 0 && arrival.etaMinutes <= 2 ? (
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold animate-pulse">
-                                                    ¡Ya llega!
-                                                </span>
-                                            ) : arrival.etaMinutes > 10 ? (
-                                                <span className="text-sm font-medium text-slate-600">
-                                                    {arrival.etaMinutes} min
-                                                </span>
-                                            ) : null}
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -450,7 +453,7 @@ export function RouteContent() {
 
                 {/* Action Button */}
                 <button
-                    onClick={() => router.push(`/station/${originStop.id}?agency=${originStop.agency}`)}
+                    onClick={() => router.push(`/metro/station/${originStop.id}`)}
                     className={`w-full py-3 px-4 text-white rounded-xl transition-colors font-medium ${isMetro ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'
                         }`}
                 >
