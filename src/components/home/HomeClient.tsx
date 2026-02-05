@@ -347,7 +347,7 @@ export default function HomeClient() {
 
     const renderFavorites = () => {
         const favList = favorites.filter(f => f.agency === activeTransport);
-        
+
         if (favList.length === 0) {
             return (
                 <div className="bg-white rounded-xl p-8 text-center border border-slate-100">
@@ -357,7 +357,7 @@ export default function HomeClient() {
                 </div>
             );
         }
-        
+
         // Cuadrícula para Metro, lista para otros
         if (activeTransport === 'metro') {
             return (
@@ -376,7 +376,7 @@ export default function HomeClient() {
                 </div>
             );
         }
-        
+
         return (
             <div className="space-y-3">
                 {favList.map((fav) => (
@@ -410,13 +410,6 @@ export default function HomeClient() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => setShowIncidentsModal(true)}
-                                        className="p-2 rounded-lg hover:bg-white/20 transition-colors"
-                                        aria-label="Ver incidencias"
-                                    >
-                                        <AlertTriangle className="w-5 h-5 text-white" />
-                                    </button>
-                                    <button
                                         onClick={() => setShowAlertsConfig(true)}
                                         className="p-2 rounded-lg hover:bg-white/20 transition-colors"
                                         aria-label="Configurar alertas"
@@ -433,15 +426,25 @@ export default function HomeClient() {
                     <div className="px-4 sm:px-6 lg:px-8 relative" style={{ marginTop: '-150px', zIndex: 10 }}>
                         <div className="max-w-lg mx-auto bg-white rounded-[30px] p-6 shadow-xl">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Planifica tu ruta</h2>
-                                <button
-                                    onClick={() => router.push('/metro/map')}
-                                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center"
-                                    aria-label="Ver mapa del metro"
-                                    title="Ver mapa del metro"
-                                >
-                                    <Map className="w-4 h-4 text-slate-600" />
-                                </button>
+                                <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mr-4">Planifica tu ruta</h2>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => router.push('/metro/map')}
+                                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center"
+                                        aria-label="Ver mapa del metro"
+                                        title="Ver mapa del metro"
+                                    >
+                                        <Map className="w-4 h-4 text-slate-600" />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowIncidentsModal(true)}
+                                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center"
+                                        aria-label="Ver incidencias"
+                                        title="Ver incidencias"
+                                    >
+                                        <AlertTriangle className="w-4 h-4 text-slate-600" />
+                                    </button>
+                                </div>
                             </div>
                             <div className="space-y-3">
                                 {/* Origin */}
@@ -562,8 +565,8 @@ export default function HomeClient() {
                                     className="p-2 rounded-lg hover:bg-white/20 transition-colors"
                                     aria-label="Ver todas las líneas"
                                 >
-                                <Bus className="w-5 h-5 text-white mr-2" />
-                                <span className="font-semibold text-white">Líneas</span>
+                                    <Bus className="w-5 h-5 text-white mr-2" />
+                                    <span className="font-semibold text-white">Líneas</span>
                                 </button>
                             </div>
                         </div>
@@ -575,7 +578,7 @@ export default function HomeClient() {
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Buscar parada o línea</h2>
                             </div>
-                            
+
                             {/* Search Input */}
                             <div className="relative mb-4">
                                 <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100 transition-all">
@@ -764,81 +767,81 @@ export default function HomeClient() {
                     {/* Floating White Search Panel */}
                     <div className="px-4 sm:px-6 lg:px-8 relative" style={{ marginTop: '-125px', zIndex: 10 }}>
                         <div className="max-w-lg mx-auto bg-white rounded-[30px] p-6 shadow-xl">
-                                <h2 className="text-sm font-bold text-green-800 uppercase tracking-wide mb-4">BUSCAR PARADA</h2>
+                            <h2 className="text-sm font-bold text-green-800 uppercase tracking-wide mb-4">BUSCAR PARADA</h2>
 
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        value={bizkaibusSearch}
-                                        onChange={(e) => setBizkaibusSearch(e.target.value)}
-                                        onFocus={() => bizkaibusSearch.length >= 2 && bizkaibusResults.length > 0 && setShowBizkaibusDropdown(true)}
-                                        placeholder="Nombre o número de parada..."
-                                        className="w-full py-4 px-5 text-base rounded-[25px] bg-slate-100 text-slate-900 placeholder-slate-400 border-0 focus:ring-2 focus:ring-[#a5ca71] outline-none transition-all font-medium mb-4"
-                                        style={{ fontSize: 16 }}
-                                    />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={bizkaibusSearch}
+                                    onChange={(e) => setBizkaibusSearch(e.target.value)}
+                                    onFocus={() => bizkaibusSearch.length >= 2 && bizkaibusResults.length > 0 && setShowBizkaibusDropdown(true)}
+                                    placeholder="Nombre o número de parada..."
+                                    className="w-full py-4 px-5 text-base rounded-[25px] bg-slate-100 text-slate-900 placeholder-slate-400 border-0 focus:ring-2 focus:ring-[#a5ca71] outline-none transition-all font-medium mb-4"
+                                    style={{ fontSize: 16 }}
+                                />
 
-                                    {/* Search Button */}
+                                {/* Search Button */}
+                                <button
+                                    onClick={() => {
+                                        if (bizkaibusSearch.length >= 2 && bizkaibusResults.length > 0) {
+                                            handleStopSelect(bizkaibusResults[0].id, 'bizkaibus');
+                                        }
+                                    }}
+                                    className="w-full py-4 px-6 rounded-xl font-semibold text-white transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
+                                    style={{ backgroundColor: '#22533d' }}
+                                >
+                                    Buscar parada
+                                </button>
+
+                                {bizkaibusSearch && (
                                     <button
                                         onClick={() => {
-                                            if (bizkaibusSearch.length >= 2 && bizkaibusResults.length > 0) {
-                                                handleStopSelect(bizkaibusResults[0].id, 'bizkaibus');
-                                            }
+                                            setBizkaibusSearch('');
+                                            setBizkaibusResults([]);
+                                            setShowBizkaibusDropdown(false);
                                         }}
-                                        className="w-full py-4 px-6 rounded-xl font-semibold text-white transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
-                                        style={{ backgroundColor: '#22533d' }}
+                                        className="absolute right-4 top-4 p-1 rounded-full hover:bg-slate-200 transition-colors"
                                     >
-                                        Buscar parada
+                                        <X className="w-5 h-5 text-slate-400" />
                                     </button>
+                                )}
 
-                                    {bizkaibusSearch && (
-                                        <button
-                                            onClick={() => {
-                                                setBizkaibusSearch('');
-                                                setBizkaibusResults([]);
-                                                setShowBizkaibusDropdown(false);
-                                            }}
-                                            className="absolute right-4 top-4 p-1 rounded-full hover:bg-slate-200 transition-colors"
-                                        >
-                                            <X className="w-5 h-5 text-slate-400" />
-                                        </button>
-                                    )}
-
-                                    {/* Results Dropdown */}
-                                    {showBizkaibusDropdown && bizkaibusResults.length > 0 && (
-                                        <>
-                                            {renderDropdownOverlay(() => setShowBizkaibusDropdown(false))}
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[25px] shadow-lg border border-slate-200 max-h-80 overflow-y-auto z-40 animate-slideUp">
-                                                {bizkaibusResults.map((stop) => (
-                                                    <button
-                                                        key={`${stop.id}-${stop.agency}`}
-                                                        onClick={() => {
-                                                            setBizkaibusSearch(stop.name);
-                                                            setShowBizkaibusDropdown(false);
-                                                        }}
-                                                        className="w-full text-left px-4 py-3 flex items-center gap-3 border-b border-slate-100 last:border-b-0 first:rounded-t-[25px] last:rounded-b-[25px] hover:bg-green-50 transition-colors"
-                                                    >
-                                                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-                                                            <Bus className="w-4 h-4 text-green-600" />
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="text-sm font-medium text-slate-900 truncate">{stop.name}</div>
-                                                            <div className="text-xs text-slate-500">Bizkaibus · ID: {stop.id}</div>
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-
-                                    {/* No results */}
-                                    {showBizkaibusDropdown && bizkaibusSearch.length >= 2 && bizkaibusResults.length === 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[25px] shadow-lg border border-slate-200 p-4 z-40 animate-slideUp">
-                                            <p className="text-sm text-slate-500 text-center">No se encontraron paradas</p>
+                                {/* Results Dropdown */}
+                                {showBizkaibusDropdown && bizkaibusResults.length > 0 && (
+                                    <>
+                                        {renderDropdownOverlay(() => setShowBizkaibusDropdown(false))}
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[25px] shadow-lg border border-slate-200 max-h-80 overflow-y-auto z-40 animate-slideUp">
+                                            {bizkaibusResults.map((stop) => (
+                                                <button
+                                                    key={`${stop.id}-${stop.agency}`}
+                                                    onClick={() => {
+                                                        setBizkaibusSearch(stop.name);
+                                                        setShowBizkaibusDropdown(false);
+                                                    }}
+                                                    className="w-full text-left px-4 py-3 flex items-center gap-3 border-b border-slate-100 last:border-b-0 first:rounded-t-[25px] last:rounded-b-[25px] hover:bg-green-50 transition-colors"
+                                                >
+                                                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                                                        <Bus className="w-4 h-4 text-green-600" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="text-sm font-medium text-slate-900 truncate">{stop.name}</div>
+                                                        <div className="text-xs text-slate-500">Bizkaibus · ID: {stop.id}</div>
+                                                    </div>
+                                                </button>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
+                                    </>
+                                )}
+
+                                {/* No results */}
+                                {showBizkaibusDropdown && bizkaibusSearch.length >= 2 && bizkaibusResults.length === 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[25px] shadow-lg border border-slate-200 p-4 z-40 animate-slideUp">
+                                        <p className="text-sm text-slate-500 text-center">No se encontraron paradas</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
+                    </div>
 
                     {/* Tabs de favoritos y cercanos (debajo de la búsqueda) */}
                     <main className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
@@ -972,9 +975,9 @@ export default function HomeClient() {
             )}
 
             {/* Metro Alerts Configuration Modal */}
-            <MetroAlertsConfig 
-                isOpen={showAlertsConfig} 
-                onClose={() => setShowAlertsConfig(false)} 
+            <MetroAlertsConfig
+                isOpen={showAlertsConfig}
+                onClose={() => setShowAlertsConfig(false)}
             />
 
             {/* Bilbobus Favorites Modal */}
