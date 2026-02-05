@@ -6,19 +6,21 @@ import { FavoriteStopCard } from '@/components/shared/FavoriteStopCard';
 import { NearbyStops } from '@/components/shared/NearbyStops';
 import { MetroIncidents } from '@/components/metro/MetroIncidents';
 import { MetroAlertsConfig } from '@/components/metro/MetroAlertsConfig';
-import { BottomNav, TransportType } from '@/components/shared/BottomNav';
+import { TransportType } from '@/components/shared/BottomNav';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { getNearbyStops, getAllBilbobusLines } from '@/app/actions';
 import { searchStops } from '@/lib/shared/stopSearch';
 import { searchBizkaibusStops, type BizkaibusStopResult } from '@/lib/bizkaibus/search';
-import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, MapPin, Map, AlertTriangle, Plus, Bell } from 'lucide-react';
+import { Heart, Navigation, Loader2, Search, ArrowUpDown, X, Bus, MapPin, Map, AlertTriangle, Plus, Bell, ChevronDown } from 'lucide-react';
 import { BilbobusLine, BilbobusStop } from '@/lib/bilbobus/api';
 import { StopLocation } from '@/types/transport';
 import { useLastSearch } from '@/hooks/useLastSearch';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import dynamic from 'next/dynamic';
 import FavoriteConfigModal from '@/components/bilbobus/FavoriteConfigModal';
+import { TransportSelectorModal } from '@/components/shared/TransportSelectorModal';
 
 const RenfeSection = dynamic(() => import('@/components/renfe/RenfeSection').then(m => m.RenfeSection), { ssr: false });
 
@@ -36,10 +38,23 @@ export default function HomeClient() {
     const [showAlertsConfig, setShowAlertsConfig] = useState(false);
     const [showBilbobusFavModal, setShowBilbobusFavModal] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [showTransportSelector, setShowTransportSelector] = useState(false);
 
     // Hooks para guardar las últimas búsquedas
     const { lastSearch: lastMetroSearch, saveSearch: saveMetroSearch } = useLastSearch<{ origin: StopLocation, dest: StopLocation }>('metro');
     const { lastSearch: lastBilbobusSearch, saveSearch: saveBilbobusSearch } = useLastSearch<string>('bilbobus');
+    const { startTour } = useOnboarding();
+
+    // Iniciar tour de onboarding cuando estamos en metro
+    useEffect(() => {
+        if (activeTransport === 'metro') {
+            // Pequeño delay para asegurar que el DOM esté listo
+            const timer = setTimeout(() => {
+                startTour();
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [activeTransport, startTour]);
 
     // Handle URL tab parameter to set active transport
     useEffect(() => {
@@ -53,6 +68,8 @@ export default function HomeClient() {
     const handleTransportChange = (transport: TransportType) => {
         setActiveTransport(transport);
         router.push(`/?tab=${transport}`);
+        // Marcar tooltip como visto cuando cambien transporte
+        globalThis.window.localStorage.setItem('transport_selector_tooltip_shown', 'true');
     };
 
     // Pre-fill Metro from last search
@@ -361,7 +378,7 @@ export default function HomeClient() {
         // Cuadrícula para Metro, lista para otros
         if (activeTransport === 'metro') {
             return (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                     {favList.map((fav) => (
                         <FavoriteStopCard
                             key={fav.id}
@@ -404,10 +421,20 @@ export default function HomeClient() {
                         {/* Header with Logo */}
                         <div className="px-4 sm:px-6 lg:px-8 pt-3">
                             <div className="max-w-lg mx-auto flex items-center justify-between">
-                                <div className="flex items-center gap-3">
+                                {/* Clickable Logo and Name */}
+                                <button
+                                    onClick={() => setShowTransportSelector(true)}
+                                    className="transport-logo-button group flex items-center gap-2 hover:opacity-80 transition-opacity relative"
+                                >
                                     <img src="/logoMetro.svg" alt="Metro Bilbao" className="h-10 object-contain" />
-                                    <span className="font-extrabold text-white text-lg">Metro Bilbao</span>
-                                </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-extrabold text-white text-lg">Metro Bilbao</span>
+                                        {/* Icono fijo de cambio */}
+                                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-white/20 group-hover:bg-white/30 transition-all">
+                                            <ChevronDown className="w-4 h-4 text-white animate-bounce" />
+                                        </div>
+                                    </div>
+                                </button>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => setShowAlertsConfig(true)}
@@ -459,7 +486,7 @@ export default function HomeClient() {
                                             }}
                                             onFocus={() => origin.length >= 1 && !selectedOrigin && setShowOriginDropdown(true)}
                                             placeholder={t('whereFrom')}
-                                            className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-[#f14e2d] focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
+                                            className="origin-input flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-[#f14e2d] focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
                                             style={{ fontSize: 16 }}
                                         />
                                         {(origin || selectedOrigin) && (
@@ -507,7 +534,7 @@ export default function HomeClient() {
                                             }}
                                             onFocus={() => destination.length >= 1 && !selectedDest && setShowDestDropdown(true)}
                                             placeholder={t('whereTo')}
-                                            className="flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-[#f14e2d] focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
+                                            className="destination-input flex-1 py-3 px-5 text-base rounded-xl bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-[#f14e2d] focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium"
                                             style={{ fontSize: 16 }}
                                         />
                                         {(destination || selectedDest) && (
@@ -554,12 +581,15 @@ export default function HomeClient() {
                         {/* Header with Logo */}
                         <div className="px-4 sm:px-6 lg:px-8 pt-3">
                             <div className="max-w-lg mx-auto flex items-center justify-between">
-                                <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setShowTransportSelector(true)}
+                                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                                >
                                     <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                                         <Bus className="w-6 h-6 text-white" />
                                     </div>
                                     <span className="font-extrabold text-white text-lg">Bilbobus</span>
-                                </div>
+                                </button>
                                 <button
                                     onClick={() => router.push('/bilbobus/lineas')}
                                     className="p-2 rounded-lg hover:bg-white/20 transition-colors"
@@ -749,7 +779,10 @@ export default function HomeClient() {
                         {/* Header with Logo */}
                         <div className="px-4 sm:px-6 lg:px-8 pt-3">
                             <div className="max-w-lg mx-auto flex items-center justify-between">
-                                <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setShowTransportSelector(true)}
+                                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                                >
                                     <img
                                         src="/logoBizkaibus.png"
                                         alt="Bizkaibus"
@@ -759,7 +792,7 @@ export default function HomeClient() {
                                         }}
                                     />
                                     <span className="font-extrabold text-white text-lg">Bizkaibus</span>
-                                </div>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -944,12 +977,6 @@ export default function HomeClient() {
                 </div>
             )}
 
-            {/* Bottom Navigation */}
-            <BottomNav
-                activeTransport={activeTransport}
-                onTransportChange={handleTransportChange}
-            />
-
             {/* Incidents Modal */}
             {showIncidentsModal && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
@@ -984,6 +1011,14 @@ export default function HomeClient() {
             <FavoriteConfigModal
                 isOpen={showBilbobusFavModal}
                 onClose={() => setShowBilbobusFavModal(false)}
+            />
+
+            {/* Transport Selector Modal */}
+            <TransportSelectorModal
+                isOpen={showTransportSelector}
+                onClose={() => setShowTransportSelector(false)}
+                onSelectTransport={handleTransportChange}
+                activeTransport={activeTransport}
             />
         </div>
     );

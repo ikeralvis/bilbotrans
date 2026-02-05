@@ -228,10 +228,14 @@ export function FavoriteStopCard({ stopId, name, agency, lat, lon, onTap }: Favo
     return (
         <button
             onClick={onTap}
-            className={`w-full group p-3 rounded-xl bg-gradient-to-br from-white to-slate-50 border transition-all duration-150 text-left ${
-                agency === 'bizkaibus' 
-                    ? 'border-2 border-slate-200 hover:border-green-500 hover:shadow-md' 
-                    : `border border-slate-200 ${getHoverBorder()} hover:shadow-sm active:scale-[0.98]`
+            className={`w-full group p-4 rounded-2xl bg-gradient-to-br from-white to-slate-50 border-2 transition-all duration-200 text-left active:scale-95 ${
+                agency === 'metro'
+                    ? 'border-orange-200 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100'
+                    : agency === 'bizkaibus'
+                    ? 'border-green-200 hover:border-green-400 hover:shadow-lg hover:shadow-green-100'
+                    : agency === 'renfe'
+                    ? 'border-purple-200 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-100'
+                    : 'border-red-200 hover:border-red-400 hover:shadow-lg hover:shadow-red-100'
             }`}
         >
             {/* Header para Bizkaibus */}
