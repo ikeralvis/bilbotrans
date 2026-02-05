@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
-// Clave para marcar que ya se actualizó (localStorage persiste entre pestañas)
-const UPDATE_APPLIED_KEY = 'pwa_last_update_time';
-const UPDATE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hora sin mostrar popup después de actualizar
+// Solo evitar mostrar el popup si ya se descartó o actualizó en esta sesión
+const UPDATE_DISMISSED_KEY = 'pwa_update_dismissed'; // sessionStorage - se limpia al cerrar
 
 export function PWAClient() {
     const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -13,14 +12,11 @@ export function PWAClient() {
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-            // Si actualizamos recientemente (últimas 1h), no mostrar popup
-            const lastUpdateTime = localStorage.getItem(UPDATE_APPLIED_KEY);
-            if (lastUpdateTime) {
-                const timeSinceUpdate = Date.now() - parseInt(lastUpdateTime);
-                if (timeSinceUpdate < UPDATE_COOLDOWN_MS) {
-                    console.log('PWA: Skipping popup, updated recently');
-                    return;
-                }
+            // Solo verificar si ya se gestionó en esta sesión (cerrar o actualizar)
+            const dismissedInSession = sessionStorage.getItem(UPDATE_DISMISSED_KEY);
+            if (dismissedInSession) {
+                console.log('PWA: Update already handled in this session');
+                return;
             }
 
             navigator.serviceWorker
@@ -29,8 +25,9 @@ export function PWAClient() {
                     setRegistration(reg);
                     console.log('Service Worker registered');
 
-                    // Si ya hay un worker esperando, mostrar el popup
-                    if (reg.waiting) {
+                    // Si ya hay un worker esperando, verificar que sea diferente
+                    if (reg.waiting && navigator.serviceWorker.controller) {
+                        // Solo mostrar si el waiting es realmente nuevo
                         console.log('SW waiting found on load');
                         setUpdateAvailable(true);
                         return;
@@ -40,6 +37,7 @@ export function PWAClient() {
                     reg.addEventListener('updatefound', () => {
                         const newWorker = reg.installing;
                         if (newWorker) {
+                            console.log('New SW installing...');
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                     console.log('New version available');
@@ -67,8 +65,8 @@ export function PWAClient() {
     const handleUpdate = () => {
         console.log('PWA Update: Starting update process');
         
-        // Marcar que actualizamos ahora (localStorage persiste 1 hora)
-        localStorage.setItem(UPDATE_APPLIED_KEY, Date.now().toString());
+        // Marcar que ya se actualizó en esta sesión (se limpia al cerrar la pestaña)
+        sessionStorage.setItem(UPDATE_DISMISSED_KEY, 'updated');
         setUpdateAvailable(false);
 
         if (registration?.waiting) {
@@ -97,6 +95,13 @@ export function PWAClient() {
         }
     };
 
+    const handleDismiss = () => {
+        console.log('PWA Update: Dismissed by user');
+        // Marcar como descartado solo para esta sesión
+        sessionStorage.setItem(UPDATE_DISMISSED_KEY, 'true');
+        setUpdateAvailable(false);
+    };
+
     if (!updateAvailable) return null;
 
     return (
@@ -113,8 +118,9 @@ export function PWAClient() {
                     Actualizar
                 </button>
                 <button
-                    onClick={() => setUpdateAvailable(false)}
+                    onClick={handleDismiss}
                     className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                    aria-label="Cerrar"
                 >
                     <X className="w-4 h-4" />
                 </button>

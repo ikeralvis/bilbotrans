@@ -1,6 +1,6 @@
 // Service Worker para BilboTrans
 // Incrementa esta versión cada vez que hagas cambios importantes
-const SW_VERSION = '3';
+const SW_VERSION = '4';
 const CACHE_NAME = `bilbotrans-v${SW_VERSION}`;
 const urlsToCache = [
   '/',
@@ -68,13 +68,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Para APIs, usar network-first
-  if (url.pathname.startsWith('/api/') || url.pathname.includes('gtfs')) {
+  // Para APIs de tiempo real: NUNCA cachear (datos obsoletos causan problemas)
+  if (url.pathname.startsWith('/api/')) {
+    // Lista de endpoints que NO deben cachearse (datos en tiempo real)
+    const noCacheEndpoints = [
+      '/api/bilbobus/arrivals',
+      '/api/bilbobus/realtime',
+      '/api/bizkaibus/arrivals',
+      '/api/metro/trains',
+      '/api/renfe/delays',
+    ];
+    
+    const shouldCache = !noCacheEndpoints.some(endpoint => url.pathname.includes(endpoint));
+    
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Solo cachear GET requests
-          if (request.method === 'GET' && response.ok) {
+          // Solo cachear endpoints estáticos (schedule, fares, incidents)
+          if (shouldCache && request.method === 'GET' && response.ok) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, responseClone);
@@ -83,14 +94,25 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          return caches.match(request).then((response) => {
-            return response || new Response('Offline - No cached data available', {
-              status: 503,
-              statusText: 'Service Unavailable',
+          // Si no hay red, intentar caché solo para endpoints no críticos
+          if (shouldCache) {
+            return caches.match(request).then((response) => {
+              return response || new Response('Offline - No cached data available', {
+                status: 503,
+                statusText: 'Service Unavailable',
+              });
             });
+          }
+          // Para endpoints de tiempo real, devolver error sin caché
+          return new Response('No network connection', {
+            status: 503,
+            statusText: 'Service Unavailable',
           });
         })
     );
+  } else if (url.pathname.includes('gtfs')) {
+    // GTFS también es tiempo real, no cachear
+    event.respondWith(fetch(request));
   } else {
     // Para assets, usar cache-first
     event.respondWith(
