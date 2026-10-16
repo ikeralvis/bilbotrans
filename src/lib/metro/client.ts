@@ -1,4 +1,4 @@
-import { groupByDirection, type DirectionGroup, type RawTrain } from './direction';
+import { groupByDirection, SIDE_LABEL, type DirectionGroup, type RawTrain, type Side } from './direction';
 import type { LineDiagramData, LineId } from './lines';
 
 const BASE = 'https://api.metrobilbao.eus';
@@ -181,4 +181,37 @@ export async function fetchLineDiagram(line: LineId): Promise<LineDiagramData> {
             connection: Boolean(s.connection),
         }));
     return { line, stations, fetchedAt: Date.now() };
+}
+
+/* ───────── Datos mínimos para widgets ───────── */
+
+export interface WidgetStation {
+    code: string;
+    name: string;
+    error: boolean;
+    next: Array<{ side: Side; sideLabel: string; line: string; destination: string; minutes: number }>;
+}
+
+export const MAX_WIDGET_STATIONS = 6;
+
+/** Códigos válidos y únicos, en el orden pedido. */
+export function parseStationCodes(raw: string): string[] {
+    return [...new Set(raw.split(/[,\-]/).map((c) => c.trim().toUpperCase()).filter(isStationCode))].slice(0, MAX_WIDGET_STATIONS);
+}
+
+/** Primer tren de cada sentido para varias estaciones; una estación caída no rompe el resto. */
+export async function fetchWidgetStations(codes: string[]): Promise<WidgetStation[]> {
+    const results = await Promise.allSettled(codes.map((c) => fetchStationLive(c)));
+    return results.map((r, i) => {
+        if (r.status !== 'fulfilled') return { code: codes[i], name: codes[i], next: [], error: true };
+        const s = r.value;
+        return {
+            code: s.code,
+            name: s.name,
+            error: false,
+            next: s.groups
+                .filter((g) => g.trains.length > 0)
+                .map((g) => ({ side: g.side, sideLabel: SIDE_LABEL[g.side], line: g.trains[0].line, destination: g.trains[0].destination, minutes: g.trains[0].minutes })),
+        };
+    });
 }

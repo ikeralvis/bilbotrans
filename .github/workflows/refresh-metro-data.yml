@@ -1,0 +1,23 @@
+name: Refresh Metro data
+
+# Re-despliega Vercel cada semana. El script `prebuild` descarga entonces el catálogo de
+# estaciones y el GTFS oficial de Metro Bilbao, así que la app nunca queda con un horario caducado
+# (el feed se publica por periodos de ~1 mes y la app deja de simular trenes al terminar su vigencia).
+#
+# Requiere el secret VERCEL_DEPLOY_HOOK_URL:
+#   Vercel → proyecto → Settings → Git → Deploy Hooks → crear hook (rama master) → copiar la URL.
+on:
+  schedule:
+    - cron: '0 5 * * 1' # lunes 05:00 UTC
+  workflow_dispatch:
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel deploy hook
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "Falta el secret VERCEL_DEPLOY_HOOK_URL"; exit 1; fi
+          curl --fail --silent --show-error -X POST "$HOOK"
