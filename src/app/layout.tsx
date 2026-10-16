@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BilboTrans - Horarios Metro & Bilbobus",
-  description: "Aplicación para consultar horarios en tiempo real de Metro Bilbao y Bilbobus",
+  title: "BilboTrans · Metro Bilbao en directo",
+  description: "Próximos trenes de Metro Bilbao en tiempo real, por sentido y estación",
   icons: {
     icon: '/favicon.ico',
   },
@@ -25,8 +25,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
 };
 
@@ -39,14 +37,15 @@ export default function RootLayout({
     <html lang="es">
       <head>
         <link rel="icon" href="/favicon.ico" />
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="white" />
         <meta name="apple-mobile-web-app-title" content="BilboTrans" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-slate-900`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
           {children}

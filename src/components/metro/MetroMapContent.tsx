@@ -1,160 +1,153 @@
 'use client';
 
-import { MapContainer, TileLayer, Polyline, Marker, Popup, CircleMarker } from 'react-leaflet';
-import L from 'leaflet';
-import { Train as TrainIcon } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { divIcon } from 'leaflet';
+import { TrainFront } from 'lucide-react';
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import gtfsJson from '@/data/metro/gtfs.json';
+import { getStation } from '@/lib/metro/catalog';
+import { LINE_COLOR as LINE_COLORS } from '@/lib/metro/lines';
+import { bilbaoClock, isFeedValid, lineOf, simulateTrains, type Gtfs, type SimTrain } from '@/lib/metro/trainSim';
 
-// Fix Leaflet tile loading issues
-import { useEffect } from 'react';
+const GTFS = gtfsJson as unknown as Gtfs;
+const REFRESH_MS = 3000;
+const LINE_COLOR: Record<string, string> = { ...LINE_COLORS };
+const DRAW_ORDER = ['L3', 'L2', 'L1'] as const;
+/** Etxebarri–Plentzia (L1) y Basauri–Kabiezes (L2): recorridos completos de cada línea. */
+const CANONICAL_SHAPE: Record<string, string> = { L1: 'ETX_PLE', L2: 'BSR_KAB', L3: 'L3' };
+const LINE_WEIGHT: Record<string, number> = { L1: 4, L2: 7, L3: 5 };
 
-// Import station data
-import stationsData from '@/data/metro/stations.json';
+const BOUNDS = Object.values(GTFS.stops).filter((s) => s[0]).map((s) => [s[0], s[1]] as [number, number]);
 
-interface TrainInfo {
-    lineId: string;
-    trainId: string;
-    destination: string;
-    currentStation: string;
-    nextStation: string;
-    etaMinutes: number;
+const linesByStop = (code: string) => getStation(code)?.lines ?? [];
+const stopName = (code: string) => GTFS.stops[code]?.[2] ?? code;
+
+export interface MapStatus {
+    trains: number;
+    feedValid: boolean;
+    validTo: string;
 }
 
-interface MetroMapContentProps {
-    trains: TrainInfo[];
-}
+export default function MetroMapContent({ onStatus }: { onStatus?: (s: MapStatus) => void }) {
+    const [now, setNow] = useState(() => new Date());
 
-export default function MetroMapContent({ trains }: MetroMapContentProps) {
-    const lines = Object.values(stationsData) as any[];
+    useEffect(() => {
+        let id: ReturnType<typeof setInterval> | undefined;
+        const start = () => {
+            setNow(new Date());
+            id = setInterval(() => setNow(new Date()), REFRESH_MS);
+        };
+        const onVis = () => {
+            clearInterval(id);
+            if (!document.hidden) start();
+        };
+        start();
+        document.addEventListener('visibilitychange', onVis);
+        return () => {
+            clearInterval(id);
+            document.removeEventListener('visibilitychange', onVis);
+        };
+    }, []);
 
-    // Crear iconos para trenes
-    const createTrainIcon = (color: string) => {
-        return L.divIcon({
-            className: 'custom-train-marker',
-            html: `
-        <div class="relative animate-pulse">
-          <div class="w-10 h-10 rounded-full shadow-2xl flex items-center justify-center border-4 border-white" 
-               style="background-color: ${color}">
-            <img src="/iconoMetroMapa.png" class="w-6 h-6" alt="Metro" />
-          </div>
-          <div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-white"></div>
-        </div>
-      `,
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
-        });
-    };
-
-    const trainIcons: Record<string, L.DivIcon> = {
-        L1: createTrainIcon('#f14e2d'),
-        L2: createTrainIcon('#242324'),
-        L3: createTrainIcon('#0ea5e9')
-    };
-
-    // Calcular posición del tren
-    const getTrainPosition = (train: TrainInfo) => {
-        const line = lines.find(l => l.id === train.lineId);
-        if (!line) return null;
-
-        const currentIdx = line.stations.findIndex((s: any) => s.code === train.currentStation);
-        const nextIdx = line.stations.findIndex((s: any) => s.code === train.nextStation);
-
-        if (currentIdx === -1 || nextIdx === -1) return null;
-
-        const current = line.stations[currentIdx];
-        const next = line.stations[nextIdx];
-
-        // Si ETA = 0, está en la estación
-        if (train.etaMinutes === 0) {
-            return { lat: current.lat, lon: current.lon };
+    // Cada línea se dibuja con UN shape canónico (los ~30 shapes del GTFS son variantes
+    // de servicio con geometrías ligeramente distintas y dibujarlos todos duplica el trazado).
+    const shapes = useMemo(() => {
+        const longest = new Map<string, string>();
+        for (const p of GTFS.patterns) {
+            const line = lineOf(p.stops, linesByStop);
+            const cur = longest.get(line);
+            if (!cur || GTFS.shapes[p.shape].length > GTFS.shapes[cur].length) longest.set(line, p.shape);
         }
+        return DRAW_ORDER.flatMap((line) => {
+            const id = CANONICAL_SHAPE[line] in GTFS.shapes ? CANONICAL_SHAPE[line] : longest.get(line);
+            return id ? [{ line, id }] : [];
+        });
+    }, []);
 
-        // Interpolar posición (asumiendo 3 min entre estaciones)
-        const progress = Math.max(0, Math.min(1, 1 - (train.etaMinutes / 3)));
-        const lat = current.lat + (next.lat - current.lat) * progress;
-        const lon = current.lon + (next.lon - current.lon) * progress;
+    const stations = useMemo(() => Object.entries(GTFS.stops).filter(([code]) => code), []);
+    const trains = useMemo(() => simulateTrains({ gtfs: GTFS, linesByStop }, now), [now]);
+    const feedValid = isFeedValid(GTFS, bilbaoClock(now).date);
 
-        return { lat, lon };
-    };
+    useEffect(() => {
+        onStatus?.({ trains: trains.length, feedValid, validTo: GTFS.validTo });
+    }, [trains.length, feedValid, onStatus]);
 
     return (
-        <MapContainer
-            center={[43.2627, -2.9253]}
-            zoom={12}
-            className="h-full w-full"
-            zoomControl={true}
-        >
+        <MapContainer bounds={BOUNDS} boundsOptions={{ padding: [8, 8] }} zoomSnap={1} className="h-full w-full" zoomControl={false} preferCanvas>
             <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; OpenStreetMap'
+                url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                attribution="Tiles &copy; Esri"
+                maxZoom={16}
             />
 
-            {/* Líneas del metro */}
-            {lines.map((line: any) => {
-                const coordinates: [number, number][] = line.stations.map((s: any) => [s.lat, s.lon]);
-                return (
-                    <Polyline
-                        key={line.id}
-                        positions={coordinates}
-                        color={line.color}
-                        weight={6}
-                        opacity={0.9}
-                    />
-                );
-            })}
+            {shapes.map(({ id, line }) => (
+                <Polyline key={id} positions={GTFS.shapes[id]} pathOptions={{ color: LINE_COLOR[line], weight: LINE_WEIGHT[line], opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
+            ))}
 
-            {/* Estaciones - más pequeñas y discretas */}
-            {lines.map((line: any) =>
-                line.stations.map((station: any) => (
-                    <CircleMarker
-                        key={`${line.id}-${station.code}`}
-                        center={[station.lat, station.lon]}
-                        radius={5}
-                        fillColor="white"
-                        fillOpacity={1}
-                        color={line.color}
-                        weight={2}
-                    >
-                        <Popup>
-                            <div className="text-center">
-                                <p className="font-bold text-sm">{station.name}</p>
-                                <p className="text-xs text-slate-500">{line.id}</p>
-                            </div>
-                        </Popup>
-                    </CircleMarker>
-                ))
-            )}
+            {stations.map(([code, [lat, lon, name]]) => (
+                <CircleMarker key={code} center={[lat, lon]} radius={5} pathOptions={{ color: '#3F3F46', weight: 2, fillColor: '#fff', fillOpacity: 1 }}>
+                    <Popup className="bt-popup" closeButton={false} offset={[0, -2]}>
+                        <div className="m-0 font-semibold">{name}</div>
+                        <div className="mt-1.5 flex gap-1">
+                            {linesByStop(code).map((l) => (
+                                <LineChip key={l} line={l} />
+                            ))}
+                        </div>
+                    </Popup>
+                </CircleMarker>
+            ))}
 
-            {/* Trenes - grandes y visibles */}
-            {trains.map(train => {
-                const position = getTrainPosition(train);
-                if (!position) return null;
-
-                return (
-                    <Marker
-                        key={train.trainId}
-                        position={[position.lat, position.lon]}
-                        icon={trainIcons[train.lineId] || trainIcons.L1}
-                        zIndexOffset={1000}
-                    >
-                        <Popup>
-                            <div className="text-center min-w-[140px]">
-                                <div className="flex items-center justify-center gap-2 mb-2">
-                                    <TrainIcon className="w-4 h-4" style={{ color: lines.find(l => l.id === train.lineId)?.color }} />
-                                    <p className="font-bold text-sm">Línea {train.lineId}</p>
-                                </div>
-                                <p className="text-xs text-slate-600 mb-1">→ {train.destination}</p>
-                                <p className="text-xs text-slate-500">
-                                    {train.currentStation} → {train.nextStation}
-                                </p>
-                                <p className="text-sm font-bold text-orange-600 mt-2">
-                                    {train.etaMinutes === 0 ? '🚉 En estación' : `⏱️ ${train.etaMinutes} min`}
-                                </p>
-                            </div>
-                        </Popup>
-                    </Marker>
-                );
-            })}
+            {trains.map((t) => (
+                <TrainMarker key={t.id} train={t} />
+            ))}
         </MapContainer>
+    );
+}
+
+const ICONS = new Map<string, ReturnType<typeof divIcon>>();
+/** Insignia redonda con el color de la línea y un tren; en estación lleva un halo. */
+function trainIcon(line: string, dwelling: boolean) {
+    const key = `${line}-${dwelling}`;
+    let icon = ICONS.get(key);
+    if (!icon) {
+        const glyph = renderToStaticMarkup(<TrainFront size={15} strokeWidth={2.4} color="#fff" aria-hidden />);
+        const ring = dwelling ? `0 0 0 4px ${LINE_COLOR[line]}33,` : '';
+        icon = divIcon({
+            className: '',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+            popupAnchor: [0, -14],
+            html: `<div style="width:28px;height:28px;border-radius:50%;background:${LINE_COLOR[line]};border:2.5px solid #fff;box-shadow:${ring}0 2px 6px rgba(0,0,0,.35);display:grid;place-items:center">${glyph}</div>`,
+        });
+        ICONS.set(key, icon);
+    }
+    return icon;
+}
+
+function LineChip({ line }: { line: string }) {
+    return (
+        <span className="inline-grid h-5 min-w-7 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white" style={{ background: LINE_COLOR[line] }}>
+            {line}
+        </span>
+    );
+}
+
+function TrainMarker({ train: t }: { train: SimTrain }) {
+    const dwelling = t.state === 'dwelling';
+    const mins = Math.max(1, Math.round(t.etaSec / 60));
+    return (
+        <Marker position={t.pos} icon={trainIcon(t.line, dwelling)} zIndexOffset={1000}>
+            <Popup className="bt-popup" closeButton={false}>
+                <div className="flex items-center gap-2">
+                    <LineChip line={t.line} />
+                    <div className="m-0 font-semibold">→ {t.headsign}</div>
+                </div>
+                <div className="m-0 mt-2 text-[var(--ink-2)]">{dwelling ? 'En estación' : `${stopName(t.prevStop)} → ${stopName(t.nextStop)}`}</div>
+                <div className="bt-num m-0 mt-0.5 font-semibold">{dwelling ? stopName(t.nextStop) : `Llega a ${stopName(t.nextStop)} en ~${mins} min`}</div>
+                <div className="m-0 mt-1.5 text-[11px] text-[var(--ink-2)]">Estimado según horario</div>
+            </Popup>
+        </Marker>
     );
 }

@@ -6,6 +6,8 @@ import { ArrowLeft, AlertCircle, Clock, Heart, RefreshCw, Train, ArrowRightLeft,
 import { searchStops, SearchResult } from '@/lib/shared/stopSearch';
 import { getMetroArrivalsByStop, MetroArrival } from '@/lib/metro/api';
 import { useFavorites } from '@/context/FavoritesContext';
+import { MetroRouteView } from '@/components/metro/MetroRouteView';
+import { getStation } from '@/lib/metro/catalog';
 
 interface Stop extends SearchResult {
     lat?: number;
@@ -37,6 +39,20 @@ interface MetroScheduleResponse {
 }
 
 export function RouteContent() {
+    const sp = useSearchParams();
+    const o = sp.get('origin') ?? '';
+    const d = sp.get('dest') ?? '';
+    const oa = sp.get('originAgency') || 'metro';
+    const da = sp.get('destAgency') || 'metro';
+    const oc = o.replace(/[12]$/, '').toUpperCase();
+    const dc = d.replace(/[12]$/, '').toUpperCase();
+    if (oa === 'metro' && da === 'metro' && getStation(oc) && getStation(dc)) {
+        return <MetroRouteView from={oc} to={dc} />;
+    }
+    return <LegacyRouteContent />;
+}
+
+function LegacyRouteContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { addFavorite, removeFavorite, isFavorite } = useFavorites();

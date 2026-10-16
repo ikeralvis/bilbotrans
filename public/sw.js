@@ -1,6 +1,6 @@
 // Service Worker para BilboTrans
 // Incrementa esta versión cada vez que hagas cambios importantes
-const SW_VERSION = '4';
+const SW_VERSION = '6';
 const CACHE_NAME = `bilbotrans-v${SW_VERSION}`;
 const urlsToCache = [
   '/',
@@ -35,10 +35,7 @@ self.addEventListener('activate', (event) => {
 
 // Escuchar mensajes del cliente
 self.addEventListener('message', (event) => {
-  console.log('SW: Received message:', event.data);
-  
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('SW: SKIP_WAITING received, taking control');
     self.skipWaiting();
     
     // Notificar a todos los clientes que el control cambió
@@ -50,86 +47,69 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Estrategia: Network first, fallback to cache
+// Estrategias:
+// - Tiempo real (/api/*): solo red, nunca caché (un dato viejo parecería "en vivo").
+// - Navegación (HTML): red primero, caché como respaldo offline (evita servir un shell obsoleto).
+// - /_next/static (con hash) e iconos: caché primero (inmutables).
+// - /_next/image (fotos de estación): stale-while-revalidate.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  if (request.method !== 'GET') return;
   const url = new URL(request.url);
 
-  // Skip cross-origin requests
-  if (url.origin !== location.origin) {
-    return;
-  }
+  // En desarrollo los chunks no llevan hash: cachearlos serviría código viejo
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
 
-  // No cachear las rutas de OneSignal y evitar interferencias
-  if (url.pathname.includes('OneSignal') || 
-      url.pathname.includes('onesignal') ||
-      url.pathname.includes('ServiceWorker') ||
-      url.hostname.includes('onesignal')) {
-    return;
-  }
+  // Ignorar peticiones de otros orígenes
+  if (url.origin !== location.origin) return;
 
-  // Para APIs de tiempo real: NUNCA cachear (datos obsoletos causan problemas)
-  if (url.pathname.startsWith('/api/')) {
-    // Lista de endpoints que NO deben cachearse (datos en tiempo real)
-    const noCacheEndpoints = [
-      '/api/bilbobus/arrivals',
-      '/api/bilbobus/realtime',
-      '/api/bizkaibus/arrivals',
-      '/api/metro/trains',
-      '/api/renfe/delays',
-    ];
-    
-    const shouldCache = !noCacheEndpoints.some(endpoint => url.pathname.includes(endpoint));
-    
+  // No interferir con OneSignal
+  if (/onesignal|ServiceWorker/i.test(url.pathname)) return;
+
+  if (url.pathname.startsWith('/api/') || url.pathname.includes('gtfs')) return;
+
+  if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Solo cachear endpoints estáticos (schedule, fares, incidents)
-          if (shouldCache && request.method === 'GET' && response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
         })
-        .catch(() => {
-          // Si no hay red, intentar caché solo para endpoints no críticos
-          if (shouldCache) {
-            return caches.match(request).then((response) => {
-              return response || new Response('Offline - No cached data available', {
-                status: 503,
-                statusText: 'Service Unavailable',
-              });
-            });
-          }
-          // Para endpoints de tiempo real, devolver error sin caché
-          return new Response('No network connection', {
-            status: 503,
-            statusText: 'Service Unavailable',
-          });
-        })
+        .catch(() => caches.match(request).then((hit) => hit || caches.match('/')))
     );
-  } else if (url.pathname.includes('gtfs')) {
-    // GTFS también es tiempo real, no cachear
-    event.respondWith(fetch(request));
-  } else {
-    // Para assets, usar cache-first
+    return;
+  }
+
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/')) {
     event.respondWith(
-      caches.match(request).then((response) => {
-        if (response) {
-          return response;
-        }
+      caches.match(request).then((hit) => {
+        if (hit) return hit;
         return fetch(request).then((response) => {
-          // Solo cachear GET requests
-          if (request.method === 'GET' && response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
         });
+      })
+    );
+    return;
+  }
+
+  if (url.pathname.startsWith('/_next/image')) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const hit = await cache.match(request);
+        const network = fetch(request)
+          .then((response) => {
+            if (response.ok) cache.put(request, response.clone());
+            return response;
+          })
+          .catch(() => hit);
+        return hit || network;
       })
     );
   }

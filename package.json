@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:metro": "tsx scripts/sync-metro-stations.ts",
+    "sync:gtfs": "tsx scripts/sync-metro-gtfs.ts",
+    "test": "tsx --test src/lib/metro/direction.test.ts src/lib/metro/trainSim.test.ts",
+    "prebuild": "tsx scripts/sync-metro-stations.ts || echo catalog sync skipped; tsx scripts/sync-metro-gtfs.ts || echo gtfs sync skipped"
   },
   "dependencies": {
     "@lucide/lab": "^0.1.2",
@@ -19,12 +23,14 @@
     "gtfs-realtime-bindings": "^1.1.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
+    "motion": "^14.3.0",
     "next": "16.1.1",
     "protobufjs": "^7.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",
-    "react-onesignal": "^3.4.6"
+    "react-onesignal": "^3.4.6",
+    "swr": "^2.5.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

@@ -93,14 +93,12 @@ export interface StationInfo {
 export async function getStationInfo(stationCode: string, lang: string = 'es'): Promise<StationInfo | null> {
     try {
         const url = `https://api.metrobilbao.eus/api/stations/${stationCode}?lang=${lang}`;
-        console.log(`[Metro API] Fetching station: ${url}`);
 
         const response = await axios.get<StationApiResponse>(url, {
             timeout: 8000
         });
 
         const data = response.data;
-        console.log(`[Metro API] Got station ${data.name} with ${data.platforms?.Platforms?.length || 0} platforms`);
 
         // Parse platform 1 trains (index 0)
         const platform1Trains: MetroArrival[] = (data.platforms?.Platforms?.[0] || []).map((train: StationApiTrain) => ({
@@ -162,7 +160,6 @@ export async function getStationInfo(stationCode: string, lang: string = 'es'): 
  * Now uses the simplified /api/stations endpoint
  */
 export async function getMetroArrivalsByStop(stopCode: string, lang: string = 'es'): Promise<MetroArrival[]> {
-    console.log(`[Metro] Getting arrivals for stop: ${stopCode}`);
 
     try {
         const stationInfo = await getStationInfo(stopCode, lang);

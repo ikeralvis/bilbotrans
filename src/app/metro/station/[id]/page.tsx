@@ -11,6 +11,7 @@ import { useGeolocation } from '@/context/GeolocationContext';
 import { arrowsUpDownSquare } from '@lucide/lab';
 import { getMetroArrivalsByStop, type Exit } from '@/lib/metro/api';
 import { getBizkaibusArrivals } from '@/lib/bizkaibus/api';
+import { MetroStationView } from '@/components/metro/MetroStationView';
 
 interface Schedule {
     lineId: string;
@@ -25,6 +26,15 @@ interface Schedule {
 }
 
 export default function StationPage() {
+    const params0 = useParams();
+    const agency0 = useSearchParams().get('agency') || 'metro';
+    if (agency0 === 'metro') {
+        return <MetroStationView code={(params0.id as string).replace(/[12]$/, '').toUpperCase()} />;
+    }
+    return <LegacyStationPage />;
+}
+
+function LegacyStationPage() {
     const router = useRouter();
     const params = useParams();
     const searchParams = useSearchParams();

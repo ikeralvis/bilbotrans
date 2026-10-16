@@ -1,13 +1,13 @@
 {
-  "name": "BilboTrans - Horarios Metro & Bilbobus",
+  "name": "BilboTrans · Metro Bilbao",
   "short_name": "BilboTrans",
-  "description": "Aplicación para consultar horarios en tiempo real de Metro Bilbao y Bilbobus",
+  "description": "Próximos trenes de Metro Bilbao en tiempo real",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
+  "theme_color": "#1b1b1f",
+  "background_color": "#1b1b1f",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
@@ -30,13 +30,28 @@
       "form_factor": "narrow"
     }
   ],
-  "categories": ["transportation", "utilities"],
+  "categories": [
+    "transportation",
+    "utilities"
+  ],
   "shortcuts": [
     {
-      "name": "Mis Favoritos",
-      "short_name": "Favoritos",
-      "description": "Ver paradas favoritas",
-      "url": "/?tab=favorites",
+      "name": "Mis favoritas",
+      "short_name": "Favoritas",
+      "description": "Próximos trenes de tus estaciones",
+      "url": "/#favoritos",
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Mapa en vivo",
+      "short_name": "Mapa",
+      "description": "Trenes en el mapa",
+      "url": "/metro/map",
       "icons": [
         {
           "src": "/icons/icon-96x96.png",
