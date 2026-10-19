@@ -44,15 +44,23 @@ async function main() {
     const res = await fetch(`${BASE}/api/stations?page=1&perPage=200&lang=es`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = (await res.json()) as { 'hydra:member': RawStation[] };
-    const stations = json['hydra:member'].map((s) => ({
+    const stations = json['hydra:member'].map((s) => {
+        // `exits` llega como objeto indexado (no array): hay que normalizarlo antes de leer coordenadas.
+        const pts = toArr(s.exits)
+            .map((e) => ({ lat: Number(e.latitude), lon: Number(e.longitude) }))
+            .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon) && p.lat !== 0 && p.lon !== 0);
+        const lat = pts.length ? pts.reduce((a, p) => a + p.lat, 0) / pts.length : null;
+        const lon = pts.length ? pts.reduce((a, p) => a + p.lon, 0) / pts.length : null;
+        return { s, lat, lon };
+    }).map(({ s, lat, lon }) => ({
         code: s.code,
         name: s.name,
         lines: s.line,
         zone: s.zones?.[0]?.code ?? null,
         img: s.img ?? `${BASE}/stations/${s.code}.jpg`,
         map: s.map ? (s.map.startsWith('/') ? `https://cms.metrobilbao.eus${s.map}` : s.map) : null,
-        lat: s.exits?.[0] ? Number(s.exits[0].latitude) : null,
-        lon: s.exits?.[0] ? Number(s.exits[0].longitude) : null,
+        lat: lat === null ? null : Number(lat.toFixed(5)),
+        lon: lon === null ? null : Number(lon.toFixed(5)),
         exits: toArr(s.exits).map((e) => ({
             id: e.id,
             name: e.name,

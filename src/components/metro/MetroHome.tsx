@@ -1,19 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, CheckCircle2, Route, ArrowUpDown, Crosshair, Map as MapIcon, Navigation, Search, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Route, ArrowUpDown, Crosshair, Map as MapIcon, Navigation, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { getStation, searchStations, STATIONS, type CatalogStation } from '@/lib/metro/catalog';
 import { refreshMetroLive, useMetroIncidents, useMetroStation, useMetroStatus, useOldestFetchedAt } from '@/lib/metro/hooks';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useMetroHomePrefs } from '@/hooks/useMetroHomePrefs';
 import { LineChip, LiveBadge, Minutes, SPRING } from './parts';
 import { IncidentsBanner } from './IncidentsSheet';
-import { TrainStrip } from './ui';
+import { BottomSheet, TrainStrip } from './ui';
 
 /* ───────── Selector de estación con búsqueda local ───────── */
 function StationField({
@@ -21,11 +22,13 @@ function StationField({
     value,
     onChange,
     className,
+    action,
 }: {
     label: string;
     value: CatalogStation | null;
     onChange: (s: CatalogStation | null) => void;
     className?: string;
+    action?: ReactNode;
 }) {
     const [q, setQ] = useState('');
     const [open, setOpen] = useState(false);
@@ -49,6 +52,7 @@ function StationField({
                 {value ? (
                     <>
                         <span className="min-w-0 flex-1 truncate text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>{value.name}</span>
+                        {action}
                         <button onClick={() => { onChange(null); setQ(''); }} aria-label={`Quitar ${label}`} className="bt-press grid h-11 w-11 place-items-center">
                             <X className="h-4 w-4" style={{ color: 'var(--ink-2)' }} />
                         </button>
@@ -68,6 +72,7 @@ function StationField({
                         aria-label={label}
                     />
                 )}
+                {!value && action}
             </div>
             <AnimatePresence>
                 {open && !value && results.length > 0 && (
@@ -163,20 +168,45 @@ function HomeLiveBar({ codes }: { codes: string[] }) {
 
 const MAX_HOME_FAVORITES = 4;
 
+/* ───────── Interruptor accesible ───────── */
+function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
+    return (
+        <button
+            role="switch"
+            aria-checked={checked}
+            onClick={() => onChange(!checked)}
+            className="bt-press flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 py-2 text-left"
+            style={{ background: 'var(--surface-2)' }}
+        >
+            <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold" style={{ color: 'var(--ink)' }}>{label}</span>
+                {hint && <span className="block text-xs" style={{ color: 'var(--ink-2)' }}>{hint}</span>}
+            </span>
+            <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ background: checked ? 'var(--metro)' : 'var(--ink-2)', opacity: checked ? 1 : 0.5 }} aria-hidden>
+                <span className="absolute top-0.5 h-6 w-6 rounded-full bg-white transition-all" style={{ left: checked ? 22 : 2 }} />
+            </span>
+        </button>
+    );
+}
+
 /* ───────── Home ───────── */
 export default function MetroHome() {
     const router = useRouter();
     const [origin, setOrigin] = useState<CatalogStation | null>(null);
     const [dest, setDest] = useState<CatalogStation | null>(null);
     const { favorites } = useFavorites();
-    const { location, requestLocation, calculateDistance } = useGeolocation();
+    const { location, requestLocation, calculateDistance, isLoading: geoLoading, error: geoError } = useGeolocation();
+    const { prefs, updatePrefs, last, saveLast, ready } = useMetroHomePrefs();
+    const [prefsOpen, setPrefsOpen] = useState(false);
+    const [locating, setLocating] = useState<number | null>(null); // instante en que se pidió "estación más cercana"
     const { data: status } = useMetroStatus();
     const { data: incidents } = useMetroIncidents();
     const { startTour } = useOnboarding();
-    const issueNames = useMemo(
-        () => [...new Set(Object.values(status?.lines ?? {}).flatMap((l) => l.issues.map((i) => i.name)))],
-        [status],
-    );
+    const flagged = useMemo(() => {
+        const byCode = new Map<string, { code: string; name: string }>();
+        for (const l of Object.values(status?.lines ?? {})) for (const i of l.issues) byCode.set(i.code, i);
+        return [...byCode.values()];
+    }, [status]);
 
     useEffect(() => {
         const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
@@ -194,18 +224,62 @@ export default function MetroHome() {
             .filter((s): s is CatalogStation => Boolean(s) && !seen.has(s!.code) && Boolean(seen.add(s!.code)));
     }, [favorites]);
 
+    /* Última búsqueda: se precarga una sola vez, sin pisar lo que el usuario ya haya escrito. */
+    const restored = useRef(false);
+    useEffect(() => {
+        if (!ready || restored.current) return;
+        restored.current = true;
+        if (!prefs.rememberSearch || !last) return;
+        const o = getStation(last.origin);
+        if (o) setOrigin((cur) => cur ?? o);
+        const d = last.dest ? getStation(last.dest) : null;
+        if (d) setDest((cur) => cur ?? d);
+    }, [ready, last, prefs.rememberSearch]);
+
+    /* Brújula del campo Origen: pide posición nueva y fija la estación más cercana. */
+    const pickNearest = () => {
+        setLocating(Date.now());
+        void requestLocation();
+    };
+    useEffect(() => {
+        if (locating === null) return;
+        if (location && location.timestamp >= locating) {
+            const best = STATIONS.filter((s) => s.lat !== null && s.lon !== null)
+                .map((s) => ({ s, km: calculateDistance(s.lat as number, s.lon as number) }))
+                .sort((a, b) => a.km - b.km)[0];
+            if (best) setOrigin(best.s);
+            setLocating(null);
+        } else if (!geoLoading && geoError) {
+            setLocating(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location, geoLoading, geoError, locating]);
+
+    /* "Cerca de ti" activado: si el permiso ya está concedido, se refresca solo (sin pedir permiso al abrir). */
+    useEffect(() => {
+        if (!prefs.showNearby || location || !navigator.permissions?.query) return;
+        navigator.permissions.query({ name: 'geolocation' }).then((p) => {
+            if (p.state === 'granted') void requestLocation();
+        }).catch(() => {});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [prefs.showNearby]);
+
     const nearby = useMemo(() => {
-        if (!location) return [];
+        if (!prefs.showNearby || !location) return [];
         return STATIONS.filter((s) => s.lat !== null && s.lon !== null)
             .map((s) => ({ s, km: calculateDistance(s.lat as number, s.lon as number) }))
             .sort((a, b) => a.km - b.km)
             .slice(0, 2);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location]);
+    }, [location, prefs.showNearby]);
 
-    const liveCodes = useMemo(() => [...favStations.map((x) => x.code), ...nearby.map((x) => x.s.code)], [favStations, nearby]);
+    const liveCodes = useMemo(
+        () => [...(prefs.showFavorites ? favStations.map((x) => x.code) : []), ...nearby.map((x) => x.s.code)],
+        [favStations, nearby, prefs.showFavorites],
+    );
 
     const go = () => {
+        if (origin) saveLast({ origin: origin.code, dest: dest?.code ?? null });
         if (origin && dest) router.push(`/metro/route?origin=${origin.code}&dest=${dest.code}`);
         else if (origin) router.push(`/metro/station/${origin.code}?agency=metro`);
     };
@@ -232,13 +306,11 @@ export default function MetroHome() {
             </header>
 
             <main className="mx-auto max-w-2xl space-y-5 px-4 pt-3">
-                <IncidentsBanner service={incidents?.serviceIssues ?? []} installation={incidents?.installationIssues ?? []} />
-                {!status?.blocked && issueNames.length > 0 && (
-                    <div className="flex gap-2.5 rounded-2xl px-4 py-3 text-sm" style={{ background: 'color-mix(in srgb, var(--warn) 16%, var(--surface))', color: 'var(--ink)' }} role="status">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'var(--warn)' }} aria-hidden />
-                        Incidencias en: {issueNames.join(', ')}
-                    </div>
-                )}
+                <IncidentsBanner
+                    service={incidents?.serviceIssues ?? []}
+                    installation={incidents?.installationIssues ?? []}
+                    flagged={status?.blocked ? [] : flagged}
+                />
                 {status?.blocked && (
                     <div className="flex gap-2.5 rounded-2xl px-4 py-3 text-sm" style={{ background: 'color-mix(in srgb, var(--warn) 16%, var(--surface))', color: 'var(--ink)' }} role="status">
                         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'var(--warn)' }} aria-hidden />
@@ -247,7 +319,25 @@ export default function MetroHome() {
                 )}
 
                 <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={SPRING} className="bt-card relative z-20 space-y-2 p-2.5">
-                    <StationField label="Origen" value={origin} onChange={setOrigin} className="origin-input" />
+                    <StationField
+                        label="Origen"
+                        value={origin}
+                        onChange={setOrigin}
+                        className="origin-input"
+                        action={
+                            <button
+                                onClick={pickNearest}
+                                disabled={locating !== null}
+                                aria-label="Usar la estación más cercana a mí"
+                                className="bt-press grid h-11 w-11 shrink-0 place-items-center"
+                            >
+                                <Crosshair className={`h-5 w-5 ${locating !== null ? 'animate-pulse' : ''}`} style={{ color: 'var(--metro)' }} />
+                            </button>
+                        }
+                    />
+                    {geoError && locating === null && !origin && (
+                        <p className="px-3 text-xs" style={{ color: 'var(--ink-2)' }} role="alert">{geoError}</p>
+                    )}
                     <div className="relative">
                         <StationField label="Destino" value={dest} onChange={setDest} className="destination-input" />
                         {origin && dest && (
@@ -280,7 +370,7 @@ export default function MetroHome() {
                 </motion.section>
 
                 <div className="flex items-center justify-between gap-3">
-                    {incidents && !status?.blocked && issueNames.length === 0 && incidents.serviceIssues.length + incidents.installationIssues.length === 0 ? (
+                    {incidents && !status?.blocked && flagged.length === 0 && incidents.serviceIssues.length + incidents.installationIssues.length === 0 ? (
                         <span className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
                             <CheckCircle2 className="h-4 w-4" style={{ color: 'var(--live)' }} aria-hidden />
                             Servicio normal
@@ -289,7 +379,7 @@ export default function MetroHome() {
                     <HomeLiveBar codes={liveCodes} />
                 </div>
 
-                <section id="favoritos" className="favorites-section scroll-mt-4 space-y-3" aria-label="Favoritos">
+                {prefs.showFavorites && <section id="favoritos" className="favorites-section scroll-mt-4 space-y-3" aria-label="Favoritos">
                     <h2 className="px-1 text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>Favoritos</h2>
                     {favStations.length === 0 ? (
                         <div className="bt-card px-4 py-6 text-center">
@@ -308,21 +398,59 @@ export default function MetroHome() {
                     {favStations.length > MAX_HOME_FAVORITES && (
                         <p className="px-1 text-xs" style={{ color: 'var(--ink-2)' }}>Se muestran {MAX_HOME_FAVORITES} de {favStations.length} favoritas.</p>
                     )}
-                </section>
+                </section>}
 
-                <section className="space-y-3" aria-label="Cerca de ti">
+                {prefs.showNearby && <section className="space-y-3" aria-label="Cerca de ti">
                     <h2 className="px-1 text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>Cerca de ti</h2>
                     {nearby.length === 0 ? (
-                        <button onClick={() => requestLocation()} className="bt-card bt-press flex min-h-14 w-full items-center gap-3 px-4 text-left">
+                        <button onClick={() => requestLocation()} disabled={geoLoading} className="bt-card bt-press flex min-h-14 w-full items-center gap-3 px-4 text-left">
                             <Crosshair className="h-5 w-5" style={{ color: 'var(--metro)' }} aria-hidden />
-                            <span className="flex-1 text-[15px] font-medium" style={{ color: 'var(--ink)' }}>Usar mi ubicación</span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-[15px] font-medium" style={{ color: 'var(--ink)' }}>
+                                    {geoLoading ? 'Buscando tu ubicación…' : 'Usar mi ubicación'}
+                                </span>
+                                {geoError && <span className="block text-xs" style={{ color: 'var(--ink-2)' }} role="alert">{geoError}</span>}
+                            </span>
                             <Navigation className="h-4 w-4" style={{ color: 'var(--ink-2)' }} aria-hidden />
                         </button>
                     ) : (
                         <div className="grid grid-cols-2 gap-3">{nearby.map(({ s, km }) => <LiveStationCard key={s.code} station={s} distanceKm={km} />)}</div>
                     )}
-                </section>
+                </section>}
+
+                <button
+                    onClick={() => setPrefsOpen(true)}
+                    className="bt-press mx-auto flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-medium"
+                    style={{ color: 'var(--ink-2)' }}
+                >
+                    <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                    Personalizar inicio
+                </button>
             </main>
+
+            <BottomSheet open={prefsOpen} onClose={() => setPrefsOpen(false)} title="Personalizar inicio">
+                <div className="space-y-2">
+                    <Toggle
+                        label="Cerca de ti"
+                        hint="Las 2 estaciones más próximas con trenes en directo."
+                        checked={prefs.showNearby}
+                        onChange={(v) => {
+                            updatePrefs({ showNearby: v });
+                            if (v && !location) void requestLocation();
+                        }}
+                    />
+                    <Toggle label="Favoritos" hint="Tus estaciones guardadas en directo." checked={prefs.showFavorites} onChange={(v) => updatePrefs({ showFavorites: v })} />
+                    <Toggle
+                        label="Recordar última búsqueda"
+                        hint="Al abrir la app, origen y destino vuelven a estar rellenos."
+                        checked={prefs.rememberSearch}
+                        onChange={(v) => updatePrefs({ rememberSearch: v })}
+                    />
+                </div>
+                <p className="mt-3 px-1 text-xs" style={{ color: 'var(--ink-2)' }}>
+                    Para rellenar el origen con la estación más cercana, pulsa la brújula del campo Origen. La ubicación solo se pide cuando tú lo pides.
+                </p>
+            </BottomSheet>
         </div>
     );
 }
