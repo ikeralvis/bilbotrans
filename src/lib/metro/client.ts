@@ -1,12 +1,13 @@
 import { groupByDirection, SIDE_LABEL, type DirectionGroup, type RawTrain, type Side } from './direction';
 import type { LineDiagramData, LineId } from './lines';
+import { plainText } from './incidents';
 
 const BASE = 'https://api.metrobilbao.eus';
 const TIMEOUT_MS = 6000;
 
-async function getJson<T>(path: string, revalidate: number): Promise<T> {
+async function getJson<T>(path: string, revalidate: number, fresh = false): Promise<T> {
     const res = await fetch(`${BASE}${path}`, {
-        next: { revalidate },
+        ...(fresh ? { cache: 'no-store' as const } : { next: { revalidate } }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
         headers: { Accept: 'application/json' },
     });
@@ -23,7 +24,7 @@ interface StationRaw {
     code: string;
     name: string;
     line: string[];
-    issues?: Array<{ title?: string; description?: string }>;
+    issues?: Array<{ title?: string; description?: string; station?: { code?: string | null } }>;
     platforms?: {
         Platforms?: RawTrain[][];
         Entrances?: Array<{ id: number; name: string; message_es?: string }>;
@@ -39,12 +40,14 @@ export interface StationLive {
     fetchedAt: number;
 }
 
-export async function fetchStationLive(code: string, lang = 'es'): Promise<StationLive> {
-    const raw = await getJson<StationRaw>(`/api/stations/${code}?lang=${lang}`, 10);
-    const notices = [
-        ...(raw.issues ?? []).map((i) => [i.title, i.description].filter(Boolean).join(' — ')),
-        ...(raw.platforms?.Entrances ?? []).map((e) => (e.message_es ?? '').replace(/\s+/g, ' ').trim()),
-    ].filter(Boolean);
+export async function fetchStationLive(code: string, lang = 'es', fresh = false): Promise<StationLive> {
+    const raw = await getJson<StationRaw>(`/api/stations/${code}?lang=${lang}`, 10, fresh);
+    // `platforms.Entrances[].message_*` es un rótulo de toda la red (repite el aviso de otras estaciones): se ignora.
+    // Solo valen los avisos propios de esta estación.
+    const notices = (raw.issues ?? [])
+        .filter((i) => !i.station?.code || i.station.code.toUpperCase() === code.toUpperCase())
+        .map((i) => plainText(i.description || i.title))
+        .filter(Boolean);
     return {
         code: raw.code,
         name: raw.name,
@@ -81,8 +84,8 @@ export interface RouteLive {
     fetchedAt: number;
 }
 
-export async function fetchRouteLive(from: string, to: string): Promise<RouteLive> {
-    const raw = await getJson<RouteRaw>(`/metro/real-time/${from}/${to}`, 10);
+export async function fetchRouteLive(from: string, to: string, fresh = false): Promise<RouteLive> {
+    const raw = await getJson<RouteRaw>(`/metro/real-time/${from}/${to}`, 10, fresh);
     return {
         from: raw.trip.fromStation,
         to: raw.trip.toStation,

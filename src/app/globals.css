@@ -29,8 +29,24 @@
   }
 }
 
+html {
+  background: var(--bg, var(--background));
+  min-height: 100%;
+}
+
+/* Banda bajo la barra de estado en iOS standalone: texto del sistema siempre blanco → fondo oscuro fijo. */
+.bt-statusbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--hero, #1b1b1f);
+  z-index: 100;
+  pointer-events: none;
+}
+
 body {
   background: var(--background);
+  min-height: 100dvh;
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
   -webkit-font-smoothing: antialiased;

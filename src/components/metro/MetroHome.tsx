@@ -32,6 +32,7 @@ function StationField({
 }) {
     const [q, setQ] = useState('');
     const [open, setOpen] = useState(false);
+    const [editing, setEditing] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     const results = useMemo(() => searchStations(q), [q]);
 
@@ -49,33 +50,35 @@ function StationField({
                 <span className="w-14 shrink-0 text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>
                     {label}
                 </span>
-                {value ? (
-                    <>
-                        <span className="min-w-0 flex-1 truncate text-[17px] font-semibold" style={{ color: 'var(--ink)' }}>{value.name}</span>
-                        {action}
-                        <button onClick={() => { onChange(null); setQ(''); }} aria-label={`Quitar ${label}`} className="bt-press grid h-11 w-11 place-items-center">
-                            <X className="h-4 w-4" style={{ color: 'var(--ink-2)' }} />
-                        </button>
-                    </>
-                ) : (
-                    <input
-                        className={`${className ?? ''} min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-[var(--ink-2)]`}
-                        style={{ color: 'var(--ink)' }}
-                        placeholder="Buscar estación"
-                        value={q}
-                        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
-                        onFocus={() => setOpen(true)}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        enterKeyHint="search"
-                        aria-label={label}
-                    />
+                <input
+                    className={`${className ?? ''} min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-[var(--ink-2)] ${value && !editing ? 'truncate font-semibold' : ''}`}
+                    style={{ color: 'var(--ink)' }}
+                    placeholder="Buscar estación"
+                    value={editing ? q : (value?.name ?? '')}
+                    onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+                    onFocus={(e) => {
+                        setEditing(true);
+                        setQ('');
+                        setOpen(true);
+                        if (value) e.currentTarget.select();
+                    }}
+                    onBlur={() => setEditing(false)}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="search"
+                    aria-label={label}
+                />
+                {value && action}
+                {value && (
+                    <button onClick={() => { onChange(null); setQ(''); }} aria-label={`Quitar ${label}`} className="bt-press grid h-11 w-11 place-items-center">
+                        <X className="h-4 w-4" style={{ color: 'var(--ink-2)' }} />
+                    </button>
                 )}
                 {!value && action}
             </div>
             <AnimatePresence>
-                {open && !value && results.length > 0 && (
+                {open && editing && results.length > 0 && (
                     <motion.ul
                         initial={{ opacity: 0, y: -6, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -87,7 +90,8 @@ function StationField({
                         {results.map((s) => (
                             <li key={s.code}>
                                 <button
-                                    onClick={() => { onChange(s); setOpen(false); setQ(''); }}
+                                    onPointerDown={(e) => e.preventDefault()}
+                                    onClick={() => { onChange(s); setOpen(false); setQ(''); setEditing(false); (document.activeElement as HTMLElement | null)?.blur(); }}
                                     className="bt-press flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left hover:bg-[var(--surface-2)]"
                                 >
                                     <span className="flex-1 truncate text-[16px] font-medium" style={{ color: 'var(--ink)' }}>{s.name}</span>

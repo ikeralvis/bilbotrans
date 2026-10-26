@@ -41,12 +41,14 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="white" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="BilboTrans" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* iOS standalone (black-translucent): la web pinta bajo la barra de estado. Esta banda sólida evita el borroso/contenido bajo el reloj. */}
+        <div className="bt-statusbar" aria-hidden />
         <Providers>
           {children}
         </Providers>

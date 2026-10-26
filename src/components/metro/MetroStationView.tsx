@@ -112,10 +112,10 @@ export function MetroStationView({ code }: { code: string }) {
                     )}
                 </div>
 
-                {(status?.blocked || (data?.notices.length ?? 0) > 0) && (
+                {status?.blocked && (
                     <div className="flex gap-2.5 rounded-2xl px-4 py-3 text-sm" style={{ background: 'color-mix(in srgb, var(--warn) 16%, var(--surface))', color: 'var(--ink)' }} role="status">
                         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'var(--warn)' }} aria-hidden />
-                        <p>{status?.blocked ? 'El servicio de Metro Bilbao está en mantenimiento.' : data?.notices[0]}</p>
+                        <p>El servicio de Metro Bilbao está en mantenimiento.</p>
                     </div>
                 )}
 

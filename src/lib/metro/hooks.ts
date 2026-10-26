@@ -5,8 +5,15 @@ import type { StationLive, RouteLive, ServiceStatus } from './client';
 import type { IncidentsPayload } from './incidents';
 import type { LineDiagramData, LineId } from './lines';
 
+/** Instante del último refresco manual: durante unos segundos las peticiones en vivo saltan toda caché. */
+let forceFreshAt = 0;
+const FRESH_WINDOW_MS = 4_000;
+
 const fetcher = async <T,>(url: string): Promise<T> => {
-    const res = await fetch(url);
+    const fresh = Date.now() - forceFreshAt < FRESH_WINDOW_MS && isLiveKey(url);
+    const res = fresh
+        ? await fetch(`${url}${url.includes('?') ? '&' : '?'}fresh=${Date.now()}`, { cache: 'no-store' })
+        : await fetch(url);
     if (!res.ok) throw new Error(String(res.status));
     return (await res.json()) as T;
 };
@@ -29,6 +36,7 @@ const isLiveKey = (key: unknown) =>
 
 /** Revalida todos los datos en vivo visibles (botón de actualizar). */
 export function refreshMetroLive() {
+    forceFreshAt = Date.now();
     return mutate(isLiveKey);
 }
 
