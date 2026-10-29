@@ -1,6 +1,8 @@
 'use client';
 
+import { useMemo, useSyncExternalStore } from 'react';
 import useSWR, { mutate, useSWRConfig } from 'swr';
+import { LAST_GOOD_PREFIX, readLastGood, saveLastGood } from './lastGood';
 import type { StationLive, RouteLive, ServiceStatus } from './client';
 import type { IncidentsPayload } from './incidents';
 import type { LineDiagramData, LineId } from './lines';
@@ -15,7 +17,9 @@ const fetcher = async <T,>(url: string): Promise<T> => {
         ? await fetch(`${url}${url.includes('?') ? '&' : '?'}fresh=${Date.now()}`, { cache: 'no-store' })
         : await fetch(url);
     if (!res.ok) throw new Error(String(res.status));
-    return (await res.json()) as T;
+    const json = (await res.json()) as T;
+    if (isLiveKey(url)) saveLastGood(url.split('&fresh=')[0].split('?fresh=')[0], json);
+    return json;
 };
 
 /**
@@ -51,8 +55,34 @@ export function useOldestFetchedAt(codes: string[]): number | undefined {
     return oldest;
 }
 
-export function useMetroStation(code: string | null) {
-    return useSWR<StationLive>(code ? `/api/metro/station/${code}` : null, fetcher, LIVE);
+/** `full`: varios trenes por sentido (vista de parada). Sin él, la ficha ligera de la home. */
+export function useMetroStation(code: string | null, full = false) {
+    return useSWR<StationLive>(code ? `/api/metro/station/${code}${full ? '?full=1' : ''}` : null, fetcher, LIVE);
+}
+
+/** Último dato bueno guardado para esa URL. En el servidor y en la primera pintura es `null`. */
+export function useLastGood<T>(key: string | null): { at: number; data: T } | null {
+    // El texto crudo es el "snapshot" estable; se parsea solo cuando cambia.
+    const raw = useSyncExternalStore(
+        () => () => {},
+        () => (key ? localStorage.getItem(LAST_GOOD_PREFIX + key) : null),
+        () => null,
+    );
+    return useMemo(() => (key && raw ? readLastGood<T>(key) : null), [key, raw]);
+}
+
+const subscribeOnline = (cb: () => void) => {
+    window.addEventListener('online', cb);
+    window.addEventListener('offline', cb);
+    return () => {
+        window.removeEventListener('online', cb);
+        window.removeEventListener('offline', cb);
+    };
+};
+
+/** Estado de la conexión del dispositivo. */
+export function useOnline() {
+    return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
 }
 
 export function useMetroRoute(from: string | null, to: string | null) {

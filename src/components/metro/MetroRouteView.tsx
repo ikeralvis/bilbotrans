@@ -1,16 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { motion } from 'motion/react';
-import { AlertTriangle, ArrowLeft, ArrowRight, ArrowUpDown, DoorOpen, Leaf, Repeat } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, ArrowUpDown, DoorOpen, Heart, Leaf, Repeat } from 'lucide-react';
 import { getStation } from '@/lib/metro/catalog';
-import { refreshMetroLive, useMetroRoute } from '@/lib/metro/hooks';
+import { refreshMetroLive, useLastGood, useMetroIncidents, useMetroRoute, useOnline } from '@/lib/metro/hooks';
+import type { RouteLive } from '@/lib/metro/client';
+import { useMetroRoutes } from '@/lib/metro/routes';
+import { matchDelays } from '@/lib/metro/delay';
+import { TRANSFER_STATION, waitMinutes } from '@/lib/metro/transfer';
 import type { Timetable } from '@/lib/metro/client';
 import { SegmentedTabs } from './ui';
-import { Disclosure, ExitBadges, GroupSkeleton, LineChip, LiveBadge, Minutes, SPRING } from './parts';
+import { IncidentsBanner } from './IncidentsSheet';
+import { Countdown, DelayBadge, Disclosure, ExitBadges, ErrorState, HeroSkeleton, LineChip, NoTrainsState, OfflineBanner, SavedTrains, LiveBadge, Minutes, SPRING } from './parts';
 
 /** Fecha y hora actuales en Bilbao (el navegador puede estar en otra zona horaria). */
 function bilbaoNow(offsetMin = 0) {
@@ -22,14 +27,18 @@ function bilbaoNow(offsetMin = 0) {
     return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${get('hour')}:${get('minute')}` };
 }
 
-function TimetableBody({ from, to }: { from: string; to: string }) {
+/**
+ * Salidas programadas desde 10 min antes de ahora (para emparejar el tren que acaba de llegar) hasta 90 min después.
+ * Se comparte entre el horario y el cálculo de retraso: SWR deduplica por URL.
+ */
+function useRouteTimetable(from: string | null, to: string | null) {
     const now = bilbaoNow();
+    const back = bilbaoNow(-10);
     const end = bilbaoNow(90);
-    const date = now.date;
-    const start = now.time;
+    const start = back.date === now.date ? back.time : '00:00';
     const stop = end.date === now.date ? end.time : '23:59';
-    const { data, error } = useSWR<Timetable>(
-        `/api/metro/timetable?from=${from}&to=${to}&start=${start}&end=${stop}&date=${date}`,
+    return useSWR<Timetable>(
+        from && to ? `/api/metro/timetable?from=${from}&to=${to}&start=${start}&end=${stop}&date=${now.date}` : null,
         async (url: string) => {
             const r = await fetch(url);
             if (!r.ok) throw new Error(String(r.status));
@@ -37,9 +46,14 @@ function TimetableBody({ from, to }: { from: string; to: string }) {
         },
         { revalidateOnFocus: false },
     );
+}
+
+function TimetableBody({ from, to }: { from: string; to: string }) {
+    const nowClock = bilbaoNow().time;
+    const { data, error } = useRouteTimetable(from, to);
     if (error) return <p className="text-sm" style={{ color: 'var(--ink-2)' }}>No se pudo cargar el horario programado.</p>;
     if (!data) return <div className="bt-skeleton h-24" aria-hidden />;
-    const leg = data.legs[0];
+    const leg = data.legs[0] && { ...data.legs[0], departures: data.legs[0].departures.filter((d) => d.dep >= nowClock) };
     if (!leg || leg.departures.length === 0) return <p className="text-sm" style={{ color: 'var(--ink-2)' }}>Sin salidas programadas en las próximas 90 minutos.</p>;
     return (
         <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
@@ -56,12 +70,109 @@ function TimetableBody({ from, to }: { from: string; to: string }) {
     );
 }
 
+/** Etapas con cambio en San Ignazio. Origen y cambio salen del horario programado; el primer tren es el de tiempo real. */
+function TransferSteps({
+    from,
+    to,
+    departs,
+    arrivesAtTransfer,
+    departsFromTransfer,
+    arrives,
+    firstDestination,
+}: {
+    from: string;
+    to: string;
+    departs: string;
+    arrivesAtTransfer: string | null;
+    departsFromTransfer: string | null;
+    arrives: string | null;
+    firstDestination: string;
+}) {
+    const changeName = getStation(TRANSFER_STATION)?.name ?? 'San Ignazio';
+    const wait = arrivesAtTransfer && departsFromTransfer ? waitMinutes(arrivesAtTransfer, departsFromTransfer) : null;
+    const steps = [
+        { label: from, time: departs, note: `Sales en el tren hacia ${firstDestination}` },
+        {
+            label: `Cambio en ${changeName}`,
+            time: arrivesAtTransfer ? `${arrivesAtTransfer.slice(0, 5)} → ${departsFromTransfer?.slice(0, 5) ?? '—'}` : (departsFromTransfer?.slice(0, 5) ?? null),
+            note: wait === null ? 'Cambias de línea' : wait === 0 ? 'Cambias de línea sin esperar' : `Cambias de línea · esperas unos ${wait} min`,
+        },
+        { label: to, time: arrives, note: 'Llegada' },
+    ];
+    return (
+        <motion.ol
+            initial="hidden"
+            animate="show"
+            variants={{ show: { transition: { staggerChildren: 0.08 } } }}
+            className="mt-5 border-t pt-4"
+            style={{ borderColor: 'var(--hairline)' }}
+            aria-label="Etapas del trayecto con transbordo"
+        >
+            {steps.map((st, i) => (
+                <motion.li
+                    key={st.label}
+                    variants={{ hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0, transition: SPRING } }}
+                    className="relative flex gap-3 pb-4 last:pb-0"
+                >
+                    <span className="relative flex w-3 shrink-0 flex-col items-center" aria-hidden>
+                        <span className="mt-1.5 h-3 w-3 rounded-full" style={{ background: i === 1 ? 'var(--warn)' : 'var(--metro)' }} />
+                        {i < steps.length - 1 && <span className="absolute -bottom-1 top-5 w-px" style={{ background: 'var(--hairline)' }} />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-semibold" style={{ color: 'var(--ink)' }}>{st.label}</span>
+                        <span className="block text-xs" style={{ color: 'var(--ink-2)' }}>{st.note}</span>
+                    </span>
+                    <span className="bt-num text-[15px] font-semibold" style={{ color: 'var(--ink)' }}>{st.time ?? '—'}</span>
+                </motion.li>
+            ))}
+        </motion.ol>
+    );
+}
+
+/** Códigos con forma de estación (para decidir si hay algo que guardar o leer). */
+const valid0 = (from: string, to: string) => /^[A-Z]{3}$/.test(from) && /^[A-Z]{3}$/.test(to);
+
 export function MetroRouteView({ from, to }: { from: string; to: string }) {
     const router = useRouter();
     const a = getStation(from);
     const b = getStation(to);
     const [tab, setTab] = useState<'live' | 'timetable'>('live');
     const { data, error, isLoading, isValidating } = useMetroRoute(a?.code ?? null, b?.code ?? null);
+    const { data: timetable } = useRouteTimetable(from, to);
+    const { data: firstLeg } = useRouteTimetable(from, data?.transfer ? TRANSFER_STATION : null);
+    const { data: secondLeg } = useRouteTimetable(data?.transfer ? TRANSFER_STATION : null, to);
+    const delays = useMemo(
+        () => matchDelays((data?.trains ?? []).map((t) => t.time), timetable?.legs[0]?.departures.map((d) => d.exact) ?? []),
+        [data, timetable],
+    );
+    const { isFavorite, toggleFavorite, recordVisit } = useMetroRoutes();
+    const { data: incidents } = useMetroIncidents();
+    const online = useOnline();
+    const saved = useLastGood<RouteLive>(valid0(from, to) ? `/api/metro/route?from=${from}&to=${to}` : null);
+    const valid = Boolean(a && b);
+    const fav = isFavorite({ from, to });
+
+    /* Cuenta como visita cuando el trayecto cargó bien (no al abrir un enlace roto). */
+    useEffect(() => {
+        if (valid && data) recordVisit({ from, to });
+    }, [valid, data, from, to, recordVisit]);
+
+    /* Solo avisos de accesos/ascensores que nombran estas estaciones. */
+    const routeNotices = useMemo(
+        () => (incidents?.installationIssues ?? []).filter((i) => i.station.code === from || i.station.code === to),
+        [incidents, from, to],
+    );
+    const matchedDeparture = useMemo(() => {
+        const sched = delays[0]?.scheduled;
+        return sched ? timetable?.legs[0]?.departures.find((d) => d.exact.startsWith(sched)) : undefined;
+    }, [delays, timetable]);
+    /* El "cambio" de la API es el siguiente tren de la otra línea, aunque no llegue al destino (p. ej. se queda en Larrabasterra).
+       El tren que de verdad te lleva es el del tramo San Ignazio→destino que llega a la hora final del trayecto. */
+    const boardsAt =
+        (matchedDeparture?.finalExact && secondLeg?.legs[0]?.departures.find((d) => d.arrExact.slice(0, 8) === matchedDeparture.finalExact)?.exact) ||
+        matchedDeparture?.transferExact ||
+        null;
+    const arrivesAtTransfer = matchedDeparture ? firstLeg?.legs[0]?.departures.find((d) => d.exact === matchedDeparture.exact)?.arrExact ?? null : null;
 
     if (!a || !b) {
         return (
@@ -90,6 +201,16 @@ export function MetroRouteView({ from, to }: { from: string; to: string }) {
                         </p>
                     </div>
                     <button
+                        onClick={() => toggleFavorite({ from: a.code, to: b.code })}
+                        aria-label={fav ? 'Quitar trayecto de favoritos' : 'Guardar trayecto en favoritos'}
+                        aria-pressed={fav}
+                        className="bt-press grid h-11 w-11 place-items-center rounded-full"
+                    >
+                        <motion.span key={String(fav)} initial={{ scale: 0.6 }} animate={{ scale: 1 }} transition={SPRING} className="grid place-items-center">
+                            <Heart className="h-5 w-5" style={{ color: fav ? 'var(--danger)' : 'var(--ink-2)', fill: fav ? 'var(--danger)' : 'none' }} />
+                        </motion.span>
+                    </button>
+                    <button
                         onClick={() => router.replace(`/metro/route?origin=${b.code}&dest=${a.code}`)}
                         aria-label="Invertir trayecto"
                         className="bt-press grid h-11 w-11 place-items-center rounded-full"
@@ -117,6 +238,8 @@ export function MetroRouteView({ from, to }: { from: string; to: string }) {
                     )}
                 </div>
 
+                <IncidentsBanner service={[]} installation={routeNotices} />
+
                 <SegmentedTabs
                     label="Vista del trayecto"
                     value={tab}
@@ -135,38 +258,75 @@ export function MetroRouteView({ from, to }: { from: string; to: string }) {
                         <TimetableBody from={a.code} to={b.code} />
                     </div>
                 ) : isLoading && !data ? (
-                    <GroupSkeleton />
+                    <HeroSkeleton />
                 ) : error && !data ? (
-                    <div className="bt-card px-4 py-8 text-center">
-                        <p className="font-semibold" style={{ color: 'var(--ink)' }}>No se pudo cargar el trayecto</p>
-                        <p className="mt-1 text-sm" style={{ color: 'var(--ink-2)' }}>Reintentando automáticamente…</p>
-                    </div>
+                    <>
+                        <OfflineBanner offline={!online} lastAt={saved?.at} />
+                        {saved ? (
+                            <SavedTrains groups={[{ label: `Desde ${a.name}`, trains: saved.data.trains.map((t) => ({ line: saved.data.line, destination: t.destination, time: t.time })) }]} />
+                        ) : (
+                            <ErrorState offline={!online} onRetry={() => refreshMetroLive()} retrying={isValidating} />
+                        )}
+                    </>
                 ) : (
-                    <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={SPRING} className="bt-card p-2" aria-label="Próximos trenes">
-                        <h2 className="px-3.5 pb-2 pt-3 text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>
-                            Próximos trenes desde {a.name}
-                        </h2>
+                    <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={SPRING} className="space-y-3" aria-label="Próximos trenes">
                         {first ? (
                             <>
-                                <div className="flex items-center gap-3 rounded-[14px] px-3.5 py-3.5" style={{ background: 'var(--surface-2)' }}>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-lg font-semibold" style={{ color: 'var(--ink)' }}>{first.destination}</p>
-                                        <p className="bt-num text-xs" style={{ color: 'var(--ink-2)' }}>{first.clock} · {first.wagons} coches</p>
-                                    </div>
-                                    <Minutes value={first.minutes} big />
-                                </div>
-                                {rest.map((t, i) => (
-                                    <div key={i} className="flex items-center gap-3 px-3.5 py-2.5">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[15px] font-semibold" style={{ color: 'var(--ink)' }}>{t.destination}</p>
-                                            <p className="bt-num text-xs" style={{ color: 'var(--ink-2)' }}>{t.clock} · {t.wagons} coches</p>
+                                <div className="bt-card p-5">
+                                    <p className="text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>
+                                        Próximo tren desde {a.name}
+                                    </p>
+                                    <div className="mt-3 flex items-end justify-between gap-4">
+                                        <div className="min-w-0 flex-1 pb-1">
+                                            <div className="flex items-center gap-2">
+                                                <LineChip line={data?.line ?? 'L1'} />
+                                                <p className="truncate text-2xl font-bold tracking-[-0.02em]" style={{ color: 'var(--ink)' }}>{first.destination}</p>
+                                            </div>
+                                            <p className="bt-num mt-1.5 text-sm" style={{ color: 'var(--ink-2)' }}>
+                                                Sale a las {first.clock} · {first.wagons} coches
+                                            </p>
                                         </div>
-                                        <Minutes value={t.minutes} />
+                                        <Countdown time={first.time} fallbackMinutes={first.minutes} />
                                     </div>
-                                ))}
+                                    <div className="mt-4 min-h-7">
+                                        <DelayBadge delay={delays[0]} />
+                                    </div>
+                                    {data?.transfer && (
+                                        <TransferSteps
+                                            from={a.name}
+                                            to={b.name}
+                                            departs={first.clock}
+                                            arrivesAtTransfer={arrivesAtTransfer}
+                                            departsFromTransfer={boardsAt}
+                                            arrives={matchedDeparture?.arr ?? null}
+                                            firstDestination={first.destination}
+                                        />
+                                    )}
+                                </div>
+                                {rest.length > 0 && (
+                                    <div className="bt-card p-1.5">
+                                        <h2 className="px-3.5 pb-1 pt-2.5 text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>Siguientes</h2>
+                                        {rest.map((t, i) => (
+                                            <div key={i} className="flex items-center gap-3 px-3.5 py-2.5">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-[15px] font-semibold" style={{ color: 'var(--ink)' }}>{t.destination}</p>
+                                                    <p className="bt-num flex flex-wrap items-center gap-x-2 text-xs" style={{ color: 'var(--ink-2)' }}>
+                                                        {t.clock} · {t.wagons} coches
+                                                        {delays[i + 1] && delays[i + 1]!.state !== 'on-time' && (
+                                                            <span style={{ color: delays[i + 1]!.state === 'late' ? 'var(--warn)' : 'var(--ink-2)' }}>
+                                                                {delays[i + 1]!.state === 'late' ? `+${delays[i + 1]!.minutes} min` : `${delays[i + 1]!.minutes} min antes`}
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <Minutes value={t.minutes} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </>
                         ) : (
-                            <p className="px-4 py-8 text-center text-sm" style={{ color: 'var(--ink-2)' }}>Sin trenes previstos ahora.</p>
+                            <NoTrainsState onTimetable={() => setTab('timetable')} />
                         )}
                     </motion.section>
                 )}

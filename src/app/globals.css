@@ -1,32 +1,28 @@
 @import "tailwindcss";
 @import "driver.js/dist/driver.css";
 
+/*
+ * Tema claro/oscuro con `light-dark()`: cada color se escribe una vez. `color-scheme` decide cuál se usa:
+ *   - sin atributo: el del sistema
+ *   - <html data-theme="light"> / "dark": el que elige la persona (interruptor de la home, guardado en localStorage)
+ */
 :root {
-  /* iOS-like Light Mode */
-  --background: #F2F2F7;
-  --foreground: #000000;
-  --card: #FFFFFF;
-  --card-foreground: #000000;
-  --muted: #8E8E93;
-  --border: #E5E5EA;
-  --primary: #007AFF; /* System Blue */
-  --highlight: #34C759; /* Success Green for 'Live' */
-  --error: #FF3B30;
+  color-scheme: light dark;
+  --background: light-dark(#f2f2f7, #000000);
+  --foreground: light-dark(#000000, #ffffff);
+  --card: light-dark(#ffffff, #1c1c1e);
+  --card-foreground: light-dark(#000000, #ffffff);
+  --muted: #8e8e93;
+  --border: light-dark(#e5e5ea, #38383a);
+  --primary: light-dark(#007aff, #0a84ff);
+  --highlight: light-dark(#34c759, #30d158);
+  --error: light-dark(#ff3b30, #ff453a);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* iOS-like Dark Mode */
-    --background: #000000;
-    --foreground: #FFFFFF;
-    --card: #1C1C1E;
-    --card-foreground: #FFFFFF;
-    --muted: #8E8E93;
-    --border: #38383A;
-    --primary: #0A84FF;
-    --highlight: #30D158;
-    --error: #FF453A;
-  }
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 html {
@@ -377,44 +373,73 @@ select {
 
 /* ───────── BilboTrans design tokens (ver DESIGN_SYSTEM.md) ───────── */
 :root {
-  --bg: #f2f2f7;
-  --surface: #ffffff;
-  --surface-2: #f7f7fa;
-  --glass: rgba(255, 255, 255, 0.72);
-  --ink: #0b0b0f;
-  --ink-2: #6b6b73;
-  --hairline: rgba(0, 0, 0, 0.08);
-  --metro: #f14e2d;
-  --l1: #d93e14;
+  --bg: light-dark(#f2f2f7, #000000);
+  --surface: light-dark(#ffffff, #1c1c1e);
+  --surface-2: light-dark(#f4f4f8, #2c2c2e);
+  --glass: light-dark(rgba(255, 255, 255, 0.72), rgba(28, 28, 30, 0.72));
+  --ink: light-dark(#0b0b0f, #ffffff);
+  --ink-2: light-dark(#6b6b73, #98989f);
+  --hairline: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.1));
+
+  /* Líneas de Metro */
+  --metro: light-dark(#d93e14, #f0583a);
+  --l1: light-dark(#d93e14, #f0583a);
   --l1-ink: #ffffff;
-  --l2: #000000;
-  --l2-ink: #ffffff;
+  --l2: light-dark(#000000, #e5e5ea);
+  --l2-ink: light-dark(#ffffff, #0b0b0f);
   --l3: #e1007a;
   --l3-ink: #ffffff;
-  --hero: #1b1b1f;
-  --live: #34c759;
+
+  --live: light-dark(#34c759, #30d158);
   --warn: #ff9f0a;
   --danger: #ff3b30;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --shadow-card: 0 1px 0 var(--hairline), 0 8px 24px -12px rgba(0, 0, 0, 0.18);
+
+  /* Sombra de tarjeta: en claro, aro tenue + elevación; en oscuro, solo el aro (la elevación no se ve sobre negro). */
+  --card-ring: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.1));
+  --card-drop-1: light-dark(rgba(0, 0, 0, 0.04), transparent);
+  --card-drop-2: light-dark(rgba(0, 0, 0, 0.14), transparent);
+  --shadow-card: 0 0 0 1px var(--card-ring), 0 1px 2px var(--card-drop-1), 0 10px 28px -14px var(--card-drop-2);
+
+  /* Marca de la red actual (la fija .net-* de cada layout). Por defecto, neutra. */
+  --brand: #1b1b1f;
+  --brand-2: #121215;
+  --brand-ink: #ffffff;
+  --accent: var(--metro);
+  /* Para texto e iconos sobre la superficie: `--accent` vale de fondo con texto blanco, pero un verde oscuro no se lee sobre negro. */
+  --accent-text: var(--accent);
+  --hero: var(--brand);
+  /* Franja sobre la que ruedan los autobuses (carretera) */
+  --strip: light-dark(#ececf0, #2a2a30);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --surface-2: #2c2c2e;
-    --glass: rgba(28, 28, 30, 0.72);
-    --ink: #ffffff;
-    --ink-2: #98989f;
-    --hairline: rgba(255, 255, 255, 0.1);
-    --metro: #ff6a4d;
-    --l1: #f0583a;
-    --l2: #e5e5ea;
-    --l2-ink: #0b0b0f;
-    --live: #30d158;
-    --shadow-card: 0 0 0 1px var(--hairline);
-  }
+/*
+ * Paleta de cada red. Se aplica en :root (con :has) para que también la hereden la banda de estado de iOS y los portales.
+ *   Metro Bilbao: gris rgba(36,35,36,.9), rojo rgb(217,62,20), blanco
+ *   Bilbobus:     rojo #c22629 y blanco
+ *   Bizkaibus:    verde #22533d, verde claro #a5ca71 y blanco
+ */
+:root:has(.net-metro),
+.net-metro {
+  --brand: light-dark(#3a393a, #212021);
+  --brand-2: light-dark(#2a292a, #161516);
+  --accent: light-dark(#d93e14, #e8512a);
+  --accent-text: light-dark(#c93610, #ff7a59);
+}
+:root:has(.net-bilbobus),
+.net-bilbobus {
+  --brand: #c22629;
+  --brand-2: #9f1d20;
+  --accent: light-dark(#c22629, #d6343a);
+  --accent-text: light-dark(#c22629, #ff6b6f);
+}
+:root:has(.net-bizkaibus),
+.net-bizkaibus {
+  --brand: #22533d;
+  --brand-2: #183d2c;
+  --lime: #a5ca71;
+  --accent: light-dark(#22533d, #2f7a59);
+  --accent-text: light-dark(#22533d, #a5ca71);
 }
 
 .bt-glass {
@@ -440,7 +465,7 @@ select {
   touch-action: manipulation;
 }
 .bt-press:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 @keyframes bt-live-pulse {
@@ -472,4 +497,26 @@ select {
 @media (prefers-reduced-motion: reduce) {
   .bt-live-dot, .bt-skeleton::after { animation: none; }
   .bt-press:active { transform: none; }
+}
+
+/* Velo de carga sobre la tarjeta de una red al pulsarla (useLinkStatus) */
+.bt-card-pending {
+  background: rgb(0 0 0 / 0.16);
+  animation: bt-pending-in 180ms var(--ease-out) 140ms both;
+}
+@keyframes bt-pending-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.bt-card-bar {
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  width: 45%;
+  animation: bt-bar 0.9s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes bt-bar {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(230%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bt-card-bar { animation: none; width: 100%; opacity: 0.6; }
 }

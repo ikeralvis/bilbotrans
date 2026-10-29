@@ -1,7 +1,7 @@
 {
-  "name": "BilboTrans · Metro Bilbao",
+  "name": "BilboTrans",
   "short_name": "BilboTrans",
-  "description": "Próximos trenes de Metro Bilbao en tiempo real",
+  "description": "Transporte de Bizkaia en directo",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -34,30 +34,5 @@
     "transportation",
     "utilities"
   ],
-  "shortcuts": [
-    {
-      "name": "Mis favoritas",
-      "short_name": "Favoritas",
-      "description": "Próximos trenes de tus estaciones",
-      "url": "/#favoritos",
-      "icons": [
-        {
-          "src": "/icons/icon-96x96.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Mapa en vivo",
-      "short_name": "Mapa",
-      "description": "Trenes en el mapa",
-      "url": "/metro/map",
-      "icons": [
-        {
-          "src": "/icons/icon-96x96.png",
-          "sizes": "96x96"
-        }
-      ]
-    }
-  ]
+  "id": "/"
 }

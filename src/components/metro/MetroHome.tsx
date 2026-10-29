@@ -1,113 +1,30 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import Image from 'next/image';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, CheckCircle2, Route, ArrowUpDown, Crosshair, Map as MapIcon, Navigation, Search, SlidersHorizontal, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Route, ArrowUpDown, Crosshair, Map as MapIcon, Navigation, Search, SlidersHorizontal } from 'lucide-react';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
-import { getStation, searchStations, STATIONS, type CatalogStation } from '@/lib/metro/catalog';
+import { getStation, STATIONS, type CatalogStation } from '@/lib/metro/catalog';
 import { refreshMetroLive, useMetroIncidents, useMetroStation, useMetroStatus, useOldestFetchedAt } from '@/lib/metro/hooks';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useMetroHomePrefs } from '@/hooks/useMetroHomePrefs';
 import { LineChip, LiveBadge, Minutes, SPRING } from './parts';
 import { IncidentsBanner } from './IncidentsSheet';
+import { RouteLiveCard, RouteSuggestions } from './RouteCards';
+import { useMetroRoutes } from '@/lib/metro/routes';
 import { BottomSheet, TrainStrip } from './ui';
-
-/* ───────── Selector de estación con búsqueda local ───────── */
-function StationField({
-    label,
-    value,
-    onChange,
-    className,
-    action,
-}: {
-    label: string;
-    value: CatalogStation | null;
-    onChange: (s: CatalogStation | null) => void;
-    className?: string;
-    action?: ReactNode;
-}) {
-    const [q, setQ] = useState('');
-    const [open, setOpen] = useState(false);
-    const [editing, setEditing] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-    const results = useMemo(() => searchStations(q), [q]);
-
-    useEffect(() => {
-        const close = (e: PointerEvent) => {
-            if (!ref.current?.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener('pointerdown', close);
-        return () => document.removeEventListener('pointerdown', close);
-    }, []);
-
-    return (
-        <div ref={ref} className="relative">
-            <div className="flex min-h-14 items-center gap-3 rounded-[14px] px-3.5" style={{ background: 'var(--surface-2)' }}>
-                <span className="w-14 shrink-0 text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>
-                    {label}
-                </span>
-                <input
-                    className={`${className ?? ''} min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-[var(--ink-2)] ${value && !editing ? 'truncate font-semibold' : ''}`}
-                    style={{ color: 'var(--ink)' }}
-                    placeholder="Buscar estación"
-                    value={editing ? q : (value?.name ?? '')}
-                    onChange={(e) => { setQ(e.target.value); setOpen(true); }}
-                    onFocus={(e) => {
-                        setEditing(true);
-                        setQ('');
-                        setOpen(true);
-                        if (value) e.currentTarget.select();
-                    }}
-                    onBlur={() => setEditing(false)}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    enterKeyHint="search"
-                    aria-label={label}
-                />
-                {value && action}
-                {value && (
-                    <button onClick={() => { onChange(null); setQ(''); }} aria-label={`Quitar ${label}`} className="bt-press grid h-11 w-11 place-items-center">
-                        <X className="h-4 w-4" style={{ color: 'var(--ink-2)' }} />
-                    </button>
-                )}
-                {!value && action}
-            </div>
-            <AnimatePresence>
-                {open && editing && results.length > 0 && (
-                    <motion.ul
-                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -4, scale: 0.98, transition: { duration: 0.1 } }}
-                        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-                        style={{ transformOrigin: 'top' }}
-                        className="bt-card absolute inset-x-0 top-full z-30 mt-2 overflow-hidden p-1.5"
-                    >
-                        {results.map((s) => (
-                            <li key={s.code}>
-                                <button
-                                    onPointerDown={(e) => e.preventDefault()}
-                                    onClick={() => { onChange(s); setOpen(false); setQ(''); setEditing(false); (document.activeElement as HTMLElement | null)?.blur(); }}
-                                    className="bt-press flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left hover:bg-[var(--surface-2)]"
-                                >
-                                    <span className="flex-1 truncate text-[16px] font-medium" style={{ color: 'var(--ink)' }}>{s.name}</span>
-                                    <span className="flex gap-1">{s.lines.map((l) => <LineChip key={l} line={l} size="sm" />)}</span>
-                                </button>
-                            </li>
-                        ))}
-                    </motion.ul>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-}
+import { HeroAction, NetworkHero } from '@/components/shared/brand';
+import { LegalFooter } from '@/components/shared/Legal';
+import { StationField } from './StationField';
+import { BilboMark } from '@/components/shared/BilboLogo';
+import { TimeFields, windowValid, type TripMode } from './TripTimeFields';
+import { defaultWindow, scheduleHref, type TripWindow } from '@/lib/metro/tripTime';
 
 /* ───────── Tarjeta compacta de estación con próximos trenes en vivo ───────── */
-function LiveStationCard({ station, distanceKm }: { station: CatalogStation; distanceKm?: number | null }) {
+export function LiveStationCard({ station, distanceKm }: { station: CatalogStation; distanceKm?: number | null }) {
     const { data } = useMetroStation(station.code);
     const groups = (data?.groups ?? []).filter((g) => g.trains.length > 0);
     return (
@@ -143,7 +60,7 @@ function LiveStationCard({ station, distanceKm }: { station: CatalogStation; dis
 }
 
 /* ───────── Barra de actualización de la home ───────── */
-function HomeLiveBar({ codes }: { codes: string[] }) {
+function HomeLiveBar({ codes, hasRoutes = false }: { codes: string[]; hasRoutes?: boolean }) {
     const [, tick] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
     useEffect(() => {
@@ -151,7 +68,7 @@ function HomeLiveBar({ codes }: { codes: string[] }) {
         return () => clearInterval(id);
     }, []);
     const fetchedAt = useOldestFetchedAt(codes);
-    if (codes.length === 0) return null;
+    if (codes.length === 0 && !hasRoutes) return null;
     return (
         <div className="flex justify-end">
             <LiveBadge
@@ -199,6 +116,8 @@ export default function MetroHome() {
     const [origin, setOrigin] = useState<CatalogStation | null>(null);
     const [dest, setDest] = useState<CatalogStation | null>(null);
     const { favorites } = useFavorites();
+    const { favorites: favRoutes, suggestions } = useMetroRoutes();
+    const suggested = suggestions(3);
     const { location, requestLocation, calculateDistance, isLoading: geoLoading, error: geoError } = useGeolocation();
     const { prefs, updatePrefs, last, saveLast, ready } = useMetroHomePrefs();
     const [prefsOpen, setPrefsOpen] = useState(false);
@@ -229,6 +148,15 @@ export default function MetroHome() {
     }, [favorites]);
 
     /* Última búsqueda: se precarga una sola vez, sin pisar lo que el usuario ya haya escrito. */
+    /* Cuándo viajas: ahora (tiempo real) o una franja del horario programado. La franja se calcula al elegir «Elegir hora». */
+    const [mode, setMode] = useState<TripMode>('now');
+    const [win, setWin] = useState<TripWindow>({ date: '', start: '', end: '' });
+    const chooseMode = (m: TripMode) => {
+        if (m === 'time' && !win.date) setWin(defaultWindow());
+        setMode(m);
+    };
+    const timeOk = mode === 'now' || windowValid(win);
+
     const restored = useRef(false);
     useEffect(() => {
         if (!ready || restored.current) return;
@@ -282,32 +210,37 @@ export default function MetroHome() {
         [favStations, nearby, prefs.showFavorites],
     );
 
-    const go = () => {
+    const [going, startGo] = useTransition();
+    const go = () => startGo(() => {
         if (origin) saveLast({ origin: origin.code, dest: dest?.code ?? null });
-        if (origin && dest) router.push(`/metro/route?origin=${origin.code}&dest=${dest.code}`);
+        if (origin && dest && mode === 'time') router.push(scheduleHref(origin.code, dest.code, win));
+        else if (origin && dest) router.push(`/metro/route?origin=${origin.code}&dest=${dest.code}`);
         else if (origin) router.push(`/metro/station/${origin.code}?agency=metro`);
-    };
+    });
 
     return (
         <div className="min-h-dvh pb-[max(6rem,env(safe-area-inset-bottom))]" style={{ background: 'var(--bg)' }}>
-            <header className="relative overflow-hidden rounded-b-[28px]" style={{ background: 'var(--hero)' }}>
-                <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
-                    <Image src="/brand/mb-logo-white-text.png" alt="Metro Bilbao" width={650} height={230} priority className="h-9 w-auto" />
-                    <div className="flex-1" />
-                    <Link href="/metro/lines" aria-label="Líneas" className="bt-press grid h-11 w-11 place-items-center rounded-full bg-white/10">
-                        <Route className="h-5 w-5 text-white" />
-                    </Link>
-                    <Link href="/metro/map" aria-label="Mapa en vivo" className="bt-press grid h-11 w-11 place-items-center rounded-full bg-white/10">
-                        <MapIcon className="h-5 w-5 text-white" />
-                    </Link>
-                </div>
-                {/* El tren oficial tiene la carrocería casi negra: va sobre franja clara para que se vea en modo oscuro */}
+            <NetworkHero
+                network="metro"
+                logoHeight={40}
+                actions={
+                    <>
+                        <HeroAction href="/metro/lines" label="Líneas">
+                            <Route className="h-5 w-5" strokeWidth={1.75} />
+                        </HeroAction>
+                        <HeroAction href="/metro/map" label="Mapa en vivo">
+                            <MapIcon className="h-5 w-5" strokeWidth={1.75} />
+                        </HeroAction>
+                    </>
+                }
+            >
+                {/* El tren oficial tiene la carrocería casi negra: va sobre franja clara para que se vea también en oscuro */}
                 <div style={{ background: '#e9e9ee' }}>
                     <div className="mx-auto max-w-2xl pb-3 pt-3">
                         <TrainStrip height={44} />
                     </div>
                 </div>
-            </header>
+            </NetworkHero>
 
             <main className="mx-auto max-w-2xl space-y-5 px-4 pt-3">
                 <IncidentsBanner
@@ -354,6 +287,7 @@ export default function MetroHome() {
                             </button>
                         )}
                     </div>
+                    {origin && dest && <TimeFields mode={mode} onMode={chooseMode} value={win} onChange={setWin} />}
                     <AnimatePresence initial={false}>
                         {origin && (
                             <motion.button
@@ -363,11 +297,12 @@ export default function MetroHome() {
                                 exit={{ opacity: 0, height: 0 }}
                                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                                 onClick={go}
-                                className="bt-press flex w-full items-center justify-center gap-2 overflow-hidden rounded-[14px] text-[16px] font-semibold text-white"
+                                disabled={!timeOk || going}
+                                className="bt-press flex w-full items-center justify-center gap-2 overflow-hidden rounded-[14px] text-[16px] font-semibold text-white disabled:opacity-40"
                                 style={{ background: 'var(--metro)' }}
                             >
-                                <Search className="h-4 w-4" aria-hidden />
-                                {dest ? 'Ver trayecto' : 'Ver trenes de la parada'}
+                                {going ? <BilboMark size={22} animated tile={false} className="text-white" /> : <Search className="h-4 w-4" aria-hidden />}
+                                {dest ? (mode === 'time' ? 'Ver horarios' : 'Ver trayecto') : 'Ver trenes de la parada'}
                             </motion.button>
                         )}
                     </AnimatePresence>
@@ -380,8 +315,21 @@ export default function MetroHome() {
                             Servicio normal
                         </span>
                     ) : <span />}
-                    <HomeLiveBar codes={liveCodes} />
+                    <HomeLiveBar codes={liveCodes} hasRoutes={favRoutes.length > 0} />
                 </div>
+
+                {favRoutes.length > 0 && (
+                    <section className="space-y-3" aria-label="Mis trayectos">
+                        <h2 className="px-1 text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>Mis trayectos</h2>
+                        <div className="space-y-3">
+                            <AnimatePresence initial={false}>
+                                {favRoutes.map((r, i) => <RouteLiveCard key={`${r.from}-${r.to}`} route={r} index={i} />)}
+                            </AnimatePresence>
+                        </div>
+                    </section>
+                )}
+
+                <RouteSuggestions items={suggested} />
 
                 {prefs.showFavorites && <section id="favoritos" className="favorites-section scroll-mt-4 space-y-3" aria-label="Favoritos">
                     <h2 className="px-1 text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>Favoritos</h2>
@@ -430,6 +378,7 @@ export default function MetroHome() {
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
                     Personalizar inicio
                 </button>
+                <LegalFooter network="metro" />
             </main>
 
             <BottomSheet open={prefsOpen} onClose={() => setPrefsOpen(false)} title="Personalizar inicio">

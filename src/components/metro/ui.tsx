@@ -67,7 +67,8 @@ export function BottomSheet({ open, onClose, title, children }: { open: boolean;
 }
 
 /* ───────── SegmentedTabs ─────────
- * Control estilo iOS; el indicador se desliza entre opciones (layoutId). */
+ * Control estilo iOS. El indicador es un único elemento que se desplaza con una transición CSS (interrumpible y sin
+ * medir el layout: un `layoutId` se queda desplazado si algo cambia de altura por encima). Radio 10 = 14 − 4 de relleno. */
 export function SegmentedTabs<T extends string>({
     value,
     onChange,
@@ -79,9 +80,20 @@ export function SegmentedTabs<T extends string>({
     options: Array<{ id: T; label: string }>;
     label: string;
 }) {
-    const group = useId();
+    const index = Math.max(0, options.findIndex((o) => o.id === value));
     return (
         <div role="tablist" aria-label={label} className="relative flex rounded-[14px] p-1" style={{ background: 'var(--surface-2)' }}>
+            <span
+                aria-hidden
+                className="pointer-events-none absolute bottom-1 left-1 top-1 rounded-[10px]"
+                style={{
+                    width: `calc((100% - 8px) / ${options.length})`,
+                    transform: `translateX(${index * 100}%)`,
+                    background: 'var(--surface)',
+                    boxShadow: '0 0 0 1px var(--card-ring), 0 1px 3px rgb(0 0 0 / 0.12)',
+                    transition: 'transform 240ms var(--ease-out)',
+                }}
+            />
             {options.map((o) => {
                 const active = o.id === value;
                 return (
@@ -91,17 +103,9 @@ export function SegmentedTabs<T extends string>({
                         aria-selected={active}
                         onClick={() => onChange(o.id)}
                         className="bt-press relative min-h-10 flex-1 rounded-[10px] px-3 text-[14px] font-semibold"
-                        style={{ color: active ? 'var(--ink)' : 'var(--ink-2)' }}
+                        style={{ color: active ? 'var(--ink)' : 'var(--ink-2)', transition: 'color 160ms var(--ease-out)' }}
                     >
-                        {active && (
-                            <motion.span
-                                layoutId={`seg-${group}`}
-                                className="absolute inset-0 rounded-[10px]"
-                                style={{ background: 'var(--surface)', boxShadow: '0 1px 3px rgba(0,0,0,.15)' }}
-                                transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                            />
-                        )}
-                        <span className="relative">{o.label}</span>
+                        {o.label}
                     </button>
                 );
             })}

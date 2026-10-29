@@ -1,4 +1,5 @@
-import { groupByDirection, SIDE_LABEL, type DirectionGroup, type RawTrain, type Side } from './direction';
+import { groupByDirection, lineOfDestination, neighborsBySide, SIDE_LABEL, type DirectionGroup, type RawTrain, type Side, type Train } from './direction';
+import { getStation } from './catalog';
 import type { LineDiagramData, LineId } from './lines';
 import { plainText } from './incidents';
 
@@ -58,6 +59,49 @@ export async function fetchStationLive(code: string, lang = 'es', fresh = false)
     };
 }
 
+/**
+ * Estación con hasta `PER_SIDE_FULL` trenes por sentido. `/api/stations/{code}` solo da 2 por andén, pero
+ * `/metro/real-time/{code}/{vecina}` da unos 8: se pide una vez por sentido (dos en una bifurcación).
+ * Sin petición extra a la ficha: si fallan todas, entonces sí se vuelve a ella.
+ */
+const PER_SIDE_FULL = 6;
+
+export async function fetchStationFull(code: string, lang = 'es', fresh = false): Promise<StationLive> {
+    const neighbors = neighborsBySide(code);
+    const jobs = (['inland', 'coast'] as Side[]).flatMap((side) =>
+        neighbors[side].map(async (n) => {
+            const raw = await getJson<RouteRaw>(`/metro/real-time/${code}/${n.code}`, 10, fresh);
+            return raw.trains.map(
+                (t): Train => ({
+                    line: lineOfDestination(t.direction, n.lines),
+                    destination: t.direction,
+                    minutes: Math.max(0, t.estimated),
+                    wagons: t.wagons,
+                    time: t.time,
+                    side,
+                }),
+            );
+        }),
+    );
+    const results = await Promise.allSettled(jobs);
+    if (results.every((r) => r.status === 'rejected')) return fetchStationLive(code, lang, fresh);
+
+    const all = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+    const known = getStation(code);
+    return {
+        code,
+        name: known?.name ?? code,
+        lines: known?.lines ?? [],
+        notices: [],
+        groups: (['inland', 'coast'] as Side[]).map((side) => ({
+            side,
+            label: SIDE_LABEL[side],
+            trains: all.filter((t) => t.side === side).sort((a, b) => a.minutes - b.minutes).slice(0, PER_SIDE_FULL),
+        })),
+        fetchedAt: Date.now(),
+    };
+}
+
 /* ───────── Trayecto en vivo ───────── */
 
 interface RouteRaw {
@@ -105,7 +149,17 @@ export async function fetchRouteLive(from: string, to: string, fresh = false): P
 /* ───────── Horario programado ───────── */
 
 interface TimetableRaw {
-    trips?: Record<string, Array<{ originArrivalTimeRounder: string; destinyArrivalTimeRounder: string }>>;
+    trips?: Record<
+        string,
+        Array<{
+            originArrivalTime: string;
+            originArrivalTimeRounder: string;
+            destinyArrivalTime: string;
+            destinyArrivalTimeRounder: string;
+            transbordTrainGettingTime?: { date: string } | null;
+            finalDestinyTime?: { date: string } | null;
+        }>
+    >;
     transfer?: boolean;
     time?: string;
 }
@@ -113,8 +167,11 @@ interface TimetableRaw {
 export interface Timetable {
     transfer: boolean;
     duration: number | null;
-    legs: Array<{ key: string; departures: Array<{ dep: string; arr: string }> }>;
+    legs: Array<{ key: string; departures: Array<{ dep: string; arr: string; exact: string; arrExact: string; transferAt: string | null; transferExact: string | null; finalExact: string | null }> }>;
 }
+
+/** "2026-10-29 12:57:12.000000" → "12:57". */
+const clock = (date?: string) => (date ? date.slice(11, 16) : null);
 
 export async function fetchTimetable(from: string, to: string, fromTime: string, toTime: string, date: string, lang = 'es'): Promise<Timetable> {
     const raw = await getJson<TimetableRaw>(`/metro/obtain-schedule-of-trip/${from}/${to}/${fromTime}/${toTime}/${date}/${lang}`, 300);
@@ -123,7 +180,16 @@ export async function fetchTimetable(from: string, to: string, fromTime: string,
         duration: raw.time ? Number(raw.time) : null,
         legs: Object.entries(raw.trips ?? {}).map(([key, list]) => ({
             key,
-            departures: list.map((t) => ({ dep: t.originArrivalTimeRounder, arr: t.destinyArrivalTimeRounder })),
+            departures: list.map((t) => ({
+                dep: t.originArrivalTimeRounder,
+                // Con transbordo, `destinyArrivalTimeRounder` trae la hora del cambio, no la llegada: la final está en `finalDestinyTime`.
+                arr: clock(t.finalDestinyTime?.date) ?? t.destinyArrivalTimeRounder,
+                exact: t.originArrivalTime,
+                arrExact: t.destinyArrivalTime,
+                transferAt: clock(t.transbordTrainGettingTime?.date),
+                transferExact: t.transbordTrainGettingTime?.date?.slice(11, 19) ?? null,
+                finalExact: t.finalDestinyTime?.date?.slice(11, 19) ?? null,
+            })),
         })),
     };
 }

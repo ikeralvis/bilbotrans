@@ -4,7 +4,6 @@
 import { db } from '@/lib/shared/db';
 import { stops } from '@/db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
-import * as bilbobus from '@/lib/bilbobus/api';
 import { getBizkaibusStopById } from '@/lib/bizkaibus/search';
 
 export interface SearchResult {
@@ -251,33 +250,4 @@ export async function fetchRenfeSchedule(origin: string, destination: string, da
         console.error('[Renfe] Fetch error:', error);
         return { ok: false, error: 'Failed to fetch schedule' };
     }
-}
-
-// Bilbobus Actions
-export async function getBilbobusArrivals(lineId: string) {
-    return await bilbobus.getBilbobusArrivals(lineId);
-}
-
-export async function getBilbobusArrivalsByStop(stopId: string) {
-    return await bilbobus.getBilbobusArrivalsByStop(stopId);
-}
-
-export async function getAllBilbobusLines() {
-    return bilbobus.getAllBilbobusLines();
-}
-
-export async function getBilbobusLineDetails(lineId: string) {
-    return bilbobus.getBilbobusLineDetails(lineId);
-}
-
-export async function searchBilbobusStops(query: string) {
-    return bilbobus.searchBilbobusStops(query);
-}
-
-export async function getBilbobusStop(stopId: string) {
-    return bilbobus.getBilbobusStop(stopId);
-}
-
-export async function getBilbobusStops(stopIds: string[]) {
-    return stopIds.map(id => bilbobus.getBilbobusStop(id)).filter(Boolean) as bilbobus.BilbobusStop[];
 }

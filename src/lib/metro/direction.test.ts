@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { groupByDirection, sideOf, sidesServed, type RawTrain } from './direction';
+import { groupByDirection, lineOfDestination, neighborsBySide, sideOf, sidesServed, type RawTrain } from './direction';
 
 const t = (Destination: string, Direction: string | number, line: string, Minutes = 3): RawTrain => ({
     Destination,
@@ -39,4 +39,30 @@ test('sidesServed en terminales', () => {
     assert.deepEqual(sidesServed('PLE'), ['inland']);
     assert.deepEqual(sidesServed('BSR'), ['coast']);
     assert.deepEqual(sidesServed('ABA').sort(), ['coast', 'inland']);
+});
+
+test('vecinas de referencia: Abando tiene una por sentido (todos los trenes paran en ella)', () => {
+    const n = neighborsBySide('ABA');
+    assert.deepEqual(n.inland.map((x) => x.code), ['CAV']);
+    assert.deepEqual(n.coast.map((x) => x.code), ['MOY']);
+    assert.deepEqual(n.coast[0].lines.sort(), ['L1', 'L2']);
+});
+
+test('vecinas en una bifurcación: San Ignazio hacia la costa son dos (L1 a Lutxana, L2 a Gurutzeta)', () => {
+    const coast = neighborsBySide('SIN').coast.map((x) => `${x.code}:${x.lines.join('')}`).sort();
+    assert.deepEqual(coast, ['GUR:L2', 'LUT:L1']);
+});
+
+test('terminales: Plentzia solo tiene sentido interior', () => {
+    const n = neighborsBySide('PLE');
+    assert.equal(n.coast.length, 0);
+    assert.equal(n.inland.length, 1);
+});
+
+test('línea de un tren por su destino', () => {
+    assert.equal(lineOfDestination('Basauri', ['L1', 'L2']), 'L2');
+    assert.equal(lineOfDestination('Kabiezes', ['L1', 'L2']), 'L2');
+    assert.equal(lineOfDestination('Etxebarri', ['L1', 'L2']), 'L1');
+    assert.equal(lineOfDestination('Larrabasterra', ['L1', 'L2']), 'L1');
+    assert.equal(lineOfDestination('Lo que sea', ['L2']), 'L2');
 });

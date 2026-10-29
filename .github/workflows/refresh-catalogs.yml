@@ -1,0 +1,57 @@
+name: Refresh Bilbobus and Bizkaibus catalogs
+
+# Los catálogos de paradas, líneas y horarios programados de Bilbobus y Bizkaibus son JSON del repo (la app no los
+# pide en cada visita). Cada semana se regeneran desde sus fuentes y, si cambian, se hace commit a master: Vercel
+# redespliega solo con cada push. Los tiempos de espera en directo NO pasan por aquí (se piden al operador al vuelo).
+#
+#   Bilbobus   GTFS del Ayuntamiento de Bilbao (Open Data Euskadi) + colores de la web oficial
+#   Bizkaibus  instantánea que genera el repo ikeralvis/bizkaitrans (que se refresca a diario)
+on:
+  schedule:
+    - cron: '30 5 * * 1' # lunes 05:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ikeralvis/bizkaitrans
+          path: _bizkaitrans
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Bilbobus (GTFS)
+        run: pnpm sync:bilbobus
+
+      - name: Bizkaibus (instantánea de bizkaitrans)
+        run: node scripts/sync-bizkaibus-catalog.mjs _bizkaitrans/src/data/bizkaibus
+
+      - name: Commit si hay cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # meta.json lleva la fecha de generación: solo con eso no merece commit
+          if git diff --quiet -- src/data/bilbobus/catalog src/data/bizkaibus/catalog ':!src/data/bilbobus/catalog/meta.json'; then
+            echo "Sin cambios."
+            git checkout -- src/data
+          else
+            git add src/data/bilbobus/catalog src/data/bizkaibus/catalog
+            git commit -m "chore(data): actualizar catálogos de Bilbobus y Bizkaibus"
+            git push
+          fi

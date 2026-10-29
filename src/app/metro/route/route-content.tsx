@@ -7,6 +7,8 @@ import { searchStops, SearchResult } from '@/lib/shared/stopSearch';
 import { getMetroArrivalsByStop, MetroArrival } from '@/lib/metro/api';
 import { useFavorites } from '@/context/FavoritesContext';
 import { MetroRouteView } from '@/components/metro/MetroRouteView';
+import { MetroScheduleView } from '@/components/metro/MetroScheduleView';
+import { parseWindow } from '@/lib/metro/tripTime';
 import { getStation } from '@/lib/metro/catalog';
 
 interface Stop extends SearchResult {
@@ -47,6 +49,8 @@ export function RouteContent() {
     const oc = o.replace(/[12]$/, '').toUpperCase();
     const dc = d.replace(/[12]$/, '').toUpperCase();
     if (oa === 'metro' && da === 'metro' && getStation(oc) && getStation(dc)) {
+        const win = parseWindow(sp);
+        if (win && sp.has('start')) return <MetroScheduleView from={oc} to={dc} window={win} />;
         return <MetroRouteView from={oc} to={dc} />;
     }
     return <LegacyRouteContent />;

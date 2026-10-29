@@ -2,9 +2,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams, useRouter, redirect } from 'next/navigation';
 import { Heart, ArrowLeft, Clock, RefreshCw, MapPin, AlertCircle, DoorClosed, Moon, Icon } from 'lucide-react';
-import { getStopDetails, getBilbobusArrivalsByStop } from '@/app/actions';
+import { getStopDetails } from '@/app/actions';
 import { TransportCard } from '@/components/shared/TransportCard';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
@@ -28,6 +28,7 @@ interface Schedule {
 export default function StationPage() {
     const params0 = useParams();
     const agency0 = useSearchParams().get('agency') || 'metro';
+    if (agency0 === 'bilbobus') redirect(`/bilbobus/stop/${params0.id as string}`); // sin quitar el último dígito: aquí no es una plataforma de metro
     if (agency0 === 'metro') {
         return <MetroStationView code={(params0.id as string).replace(/[12]$/, '').toUpperCase()} />;
     }
@@ -95,15 +96,6 @@ function LegacyStationPage() {
                     duration: arrival.duration,
                     originExits: arrival.originExits,
                     destinationExits: arrival.destinationExits
-                }));
-                setSchedules(transformed);
-            } else if (agency === 'bilbobus') {
-                const bbusArrivals = await getBilbobusArrivalsByStop(stopId);
-                const transformed: Schedule[] = bbusArrivals.map(arrival => ({
-                    lineId: arrival.lineId,
-                    destination: arrival.destination,
-                    etaMinutes: arrival.etaMinutes,
-                    agency: 'bilbobus'
                 }));
                 setSchedules(transformed);
             } else if (agency === 'bizkaibus') {

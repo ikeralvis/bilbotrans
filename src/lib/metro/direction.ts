@@ -107,6 +107,37 @@ export function groupByDirection(platforms: RawTrain[][] | undefined, stationCod
     return groups;
 }
 
+/**
+ * Estación contigua en cada sentido, agrupada: pedir /metro/real-time/{estación}/{vecina} devuelve todos los trenes
+ * que paran en la vecina. Si las líneas se separan justo ahí (p. ej. San Ignazio hacia la costa) salen dos vecinas.
+ */
+export function neighborsBySide(stationCode: string): Record<Side, Array<{ code: string; lines: string[] }>> {
+    const out: Record<Side, Array<{ code: string; lines: string[] }>> = { inland: [], coast: [] };
+    for (const line of ['L1', 'L2']) {
+        const stations = LINES[line]?.stations ?? [];
+        const idx = stations.findIndex((s) => s.code === stationCode);
+        if (idx === -1) continue;
+        for (const [side, at] of [['inland', idx - 1], ['coast', idx + 1]] as Array<[Side, number]>) {
+            const n = stations[at];
+            if (!n) continue;
+            const hit = out[side].find((x) => x.code === n.code);
+            if (hit) hit.lines.push(line);
+            else out[side].push({ code: n.code, lines: [line] });
+        }
+    }
+    return out;
+}
+
+/** Línea de un tren de /metro/real-time (que no la trae) a partir de su destino final. */
+export function lineOfDestination(destination: string, candidates: string[]): string {
+    if (candidates.length === 1) return candidates[0];
+    const n = norm(destination);
+    if (n.startsWith('basauri') || n.startsWith('kabiezes')) return 'L2';
+    if (n.startsWith('etxebarri') || n.startsWith('plentzia')) return 'L1';
+    const only = candidates.filter((l) => orderIn(l, destination) !== null);
+    return only.length === 1 ? only[0] : candidates[0];
+}
+
 /** Líneas y sentidos que sirve una estación según la topología (para estaciones terminales). */
 export function sidesServed(stationCode: string): Side[] {
     const sides = new Set<Side>();

@@ -9,7 +9,9 @@
     "lint": "eslint",
     "sync:metro": "tsx scripts/sync-metro-stations.ts",
     "sync:gtfs": "tsx scripts/sync-metro-gtfs.ts",
-    "test": "tsx --test src/lib/metro/direction.test.ts src/lib/metro/trainSim.test.ts",
+    "sync:bilbobus": "node scripts/sync-bilbobus-catalog.mjs",
+    "sync:bizkaibus": "node scripts/sync-bizkaibus-catalog.mjs",
+    "test": "tsx --test src/lib/metro/direction.test.ts src/lib/metro/trainSim.test.ts src/lib/metro/delay.test.ts src/lib/metro/time.test.ts src/lib/metro/transfer.test.ts src/lib/metro/tripTime.test.ts src/lib/bizkaibus/bizkaibus.test.ts src/lib/bizkaibus/scheduleText.test.ts src/lib/bilbobus/bilbobus.test.ts",
     "prebuild": "tsx scripts/sync-metro-stations.ts || echo catalog sync skipped; tsx scripts/sync-metro-gtfs.ts || echo gtfs sync skipped"
   },
   "dependencies": {

@@ -7,15 +7,18 @@ import { motion, useScroll, useTransform } from 'motion/react';
 import { AlertTriangle, ArrowLeft, DoorOpen, FileText, Heart, MapPin, Accessibility, Landmark } from 'lucide-react';
 import { useFavorites } from '@/context/FavoritesContext';
 import { getStation } from '@/lib/metro/catalog';
-import { refreshMetroLive, useMetroIncidents, useMetroStation, useMetroStatus } from '@/lib/metro/hooks';
+import { refreshMetroLive, useLastGood, useMetroIncidents, useMetroStation, useMetroStatus, useOnline } from '@/lib/metro/hooks';
+import type { StationLive } from '@/lib/metro/client';
 import { sidesServed } from '@/lib/metro/direction';
 import { IncidentsBanner } from './IncidentsSheet';
-import { Disclosure, DirectionSection, ExitBadges, GroupSkeleton, LineChip, LiveBadge, SPRING } from './parts';
+import { Disclosure, DirectionSection, ErrorState, ExitBadges, GroupSkeleton, LineChip, LiveBadge, NoTrainsState, OfflineBanner, SavedTrains, SPRING } from './parts';
 
 export function MetroStationView({ code }: { code: string }) {
     const router = useRouter();
     const station = getStation(code);
-    const { data, error, isLoading, isValidating } = useMetroStation(station ? station.code : null);
+    const { data, error, isLoading, isValidating } = useMetroStation(station ? station.code : null, true);
+    const online = useOnline();
+    const saved = useLastGood<StationLive>(station ? `/api/metro/station/${station.code}?full=1` : null);
     const { data: status } = useMetroStatus();
     const { data: incidents } = useMetroIncidents();
     const { favorites, addFavorite, removeFavorite } = useFavorites();
@@ -130,12 +133,17 @@ export function MetroStationView({ code }: { code: string }) {
                         <GroupSkeleton />
                     </>
                 ) : error && !data ? (
-                    <div className="bt-card px-4 py-8 text-center">
-                        <p className="font-semibold" style={{ color: 'var(--ink)' }}>No se pudo cargar el tiempo real</p>
-                        <p className="mt-1 text-sm" style={{ color: 'var(--ink-2)' }}>Reintentando automáticamente…</p>
-                    </div>
+                    <>
+                        <OfflineBanner offline={!online} lastAt={saved?.at} />
+                        {saved ? <SavedTrains groups={saved.data.groups} /> : <ErrorState offline={!online} onRetry={() => refreshMetroLive()} retrying={isValidating} />}
+                    </>
+                ) : groups.every((g) => g.trains.length === 0) ? (
+                    <NoTrainsState />
                 ) : (
-                    groups.map((g, i) => <DirectionSection key={g.side} group={g} index={i} />)
+                    <>
+                        {!online && <OfflineBanner offline />}
+                        {groups.map((g, i) => <DirectionSection key={g.side} group={g} index={i} />)}
+                    </>
                 )}
 
                 <Disclosure title="Salidas" icon={<DoorOpen className="h-4 w-4" style={{ color: 'var(--ink-2)' }} aria-hidden />} defaultOpen>
