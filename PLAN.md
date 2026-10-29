@@ -111,6 +111,13 @@ Bilbobus y Renfe: en `bizkaitrans` hay scripts y un worker con GTFS-RT de Bilbob
 - Metro por horas: «Viajar ahora / Elegir hora» en la home, vista `MetroScheduleView` (lista salida → llegada, próxima resaltada) y `TripEditor` para cambiar origen, destino, fecha y franja.
 - Bilbobus: horas de paso por parada y línea (GTFS).
 
+### Pendiente: logo propio de BilboTrans
+El logo provisional («B» con tres paradas) no representa a Bilbao. Dirección elegida: **B doble** (trazo encajonado como una línea de plano de metro) con los colores de las tres redes: naranja Metro #d93e14, rojo Bilbobus #c22629, verde Bizkaibus #a5ca71. Variantes dibujadas en SVG en `docs/logo-lab.html` (E cinta triple, F parada tricolor, G con la ría, H naranja+rojo); recomendación: E grande y H para el favicon. Falta elegir e integrar en `public/icons/icon.svg` (+ `scripts/gen-icons.mjs`), `BilboMark`, favicon y loader.
+
+### Datos que se actualizan solos
+- Metro: `prebuild` descarga estaciones y GTFS en cada despliegue; `refresh-metro-data.yml` redespliega cada lunes.
+- Bilbobus y Bizkaibus: sus catálogos son JSON del repo; `refresh-catalogs.yml` (lunes, o a mano) los regenera (GTFS de Bilbobus; instantánea de `bizkaitrans` para Bizkaibus) y hace commit si cambian, lo que dispara el despliegue de Vercel. `pnpm sync:bilbobus` / `pnpm sync:bizkaibus` lo hacen en local. Los tiempos en directo se piden al operador al vuelo (caché 10–20 s en el CDN, sin polling).
+
 ### Transversal
 - Euskera e inglés (hoy todo en castellano).
 - Compartir un trayecto por enlace (`/metro/route?origin=…&dest=…` ya funciona; falta el botón).
