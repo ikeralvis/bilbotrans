@@ -6,7 +6,7 @@
             "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
         },
         {
-            "source": "/(sw\\.js|OneSignal.*\\.js|manifest(-[a-z]+)?\\.json)",
+            "source": "/(sw\\.js|OneSignal.*\\.js|manifest\\.json|manifest-[a-z]+\\.json)",
             "headers": [
                 { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
                 { "key": "Service-Worker-Allowed", "value": "/" }
