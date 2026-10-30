@@ -10,6 +10,7 @@ import { MetroRouteView } from '@/components/metro/MetroRouteView';
 import { MetroScheduleView } from '@/components/metro/MetroScheduleView';
 import { parseWindow } from '@/lib/metro/tripTime';
 import { getStation } from '@/lib/metro/catalog';
+import { PageLoading } from '@/components/shared/PageLoading';
 
 interface Stop extends SearchResult {
     lat?: number;
@@ -238,18 +239,7 @@ function LegacyRouteContent() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto mb-4 animate-pulse shadow-sm">
-                        <img src="/logo.png" alt="BilboTrans" className="w-9 h-9 object-contain" />
-                    </div>
-                    <p className="text-slate-600 font-medium">Cargando ruta...</p>
-                </div>
-            </div>
-        );
-    }
+    if (isLoading) return <PageLoading label="Cargando ruta" />;
 
     if (error || !originStop || !destStop) {
         return (

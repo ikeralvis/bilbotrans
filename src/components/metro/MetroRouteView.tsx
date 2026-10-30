@@ -12,6 +12,7 @@ import type { RouteLive } from '@/lib/metro/client';
 import { useMetroRoutes } from '@/lib/metro/routes';
 import { matchDelays } from '@/lib/metro/delay';
 import { TRANSFER_STATION, waitMinutes } from '@/lib/metro/transfer';
+import { flattenTrips } from '@/lib/metro/tripTime';
 import type { Timetable } from '@/lib/metro/client';
 import { SegmentedTabs } from './ui';
 import { IncidentsBanner } from './IncidentsSheet';
@@ -53,17 +54,18 @@ function TimetableBody({ from, to }: { from: string; to: string }) {
     const { data, error } = useRouteTimetable(from, to);
     if (error) return <p className="text-sm" style={{ color: 'var(--ink-2)' }}>No se pudo cargar el horario programado.</p>;
     if (!data) return <div className="bt-skeleton h-24" aria-hidden />;
-    const leg = data.legs[0] && { ...data.legs[0], departures: data.legs[0].departures.filter((d) => d.dep >= nowClock) };
-    if (!leg || leg.departures.length === 0) return <p className="text-sm" style={{ color: 'var(--ink-2)' }}>Sin salidas programadas en las próximas 90 minutos.</p>;
+    const rows = flattenTrips(data).filter((r) => r.dep >= nowClock).slice(0, 8);
+    if (rows.length === 0) return <p className="text-sm" style={{ color: 'var(--ink-2)' }}>Sin salidas programadas en las próximas 90 minutos.</p>;
     return (
-        <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-            {leg.departures.slice(0, 12).map((d, i) => (
-                <li key={i} className="bt-num flex items-center justify-between text-sm" style={{ color: 'var(--ink)' }}>
-                    <span className="font-semibold">{d.dep}</span>
-                    <span className="flex items-center gap-1" style={{ color: 'var(--ink-2)' }}>
-                        <ArrowRight className="h-3 w-3" aria-hidden />
-                        {d.arr}
+        <ul className="divide-y" style={{ borderColor: 'var(--hairline)' }}>
+            {rows.map((r) => (
+                <li key={`${r.dep}-${r.arr}`} className="flex items-center gap-3 py-2.5">
+                    <span className="bt-num flex min-w-0 flex-1 items-center gap-2.5 text-[18px] font-bold leading-none tracking-[-0.01em]" style={{ color: 'var(--ink)' }}>
+                        {r.dep}
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2} style={{ color: 'var(--ink-2)' }} aria-label="llega a las" />
+                        {r.arr}
                     </span>
+                    <span className="bt-num text-[13px]" style={{ color: 'var(--ink-2)' }}>{r.minutes} min</span>
                 </li>
             ))}
         </ul>

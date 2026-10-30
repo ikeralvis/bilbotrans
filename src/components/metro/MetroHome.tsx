@@ -9,7 +9,6 @@ import { useFavorites } from '@/context/FavoritesContext';
 import { useGeolocation } from '@/context/GeolocationContext';
 import { getStation, STATIONS, type CatalogStation } from '@/lib/metro/catalog';
 import { refreshMetroLive, useMetroIncidents, useMetroStation, useMetroStatus, useOldestFetchedAt } from '@/lib/metro/hooks';
-import { useOnboarding } from '@/hooks/useOnboarding';
 import { useMetroHomePrefs } from '@/hooks/useMetroHomePrefs';
 import { LineChip, LiveBadge, Minutes, SPRING } from './parts';
 import { IncidentsBanner } from './IncidentsSheet';
@@ -124,20 +123,11 @@ export default function MetroHome() {
     const [locating, setLocating] = useState<number | null>(null); // instante en que se pidió "estación más cercana"
     const { data: status } = useMetroStatus();
     const { data: incidents } = useMetroIncidents();
-    const { startTour } = useOnboarding();
     const flagged = useMemo(() => {
         const byCode = new Map<string, { code: string; name: string }>();
         for (const l of Object.values(status?.lines ?? {})) for (const i of l.issues) byCode.set(i.code, i);
         return [...byCode.values()];
     }, [status]);
-
-    useEffect(() => {
-        const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
-        const id = idle ? idle(() => startTour()) : window.setTimeout(() => startTour(), 1200);
-        return () => {
-            if (!idle) window.clearTimeout(id);
-        };
-    }, [startTour]);
 
     const favStations = useMemo(() => {
         const seen = new Set<string>();

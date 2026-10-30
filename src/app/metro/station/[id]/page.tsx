@@ -1,6 +1,7 @@
 
 'use client';
 
+import { PageLoading } from '@/components/shared/PageLoading';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter, redirect } from 'next/navigation';
 import { Heart, ArrowLeft, Clock, RefreshCw, MapPin, AlertCircle, DoorClosed, Moon, Icon } from 'lucide-react';
@@ -150,18 +151,7 @@ function LegacyStationPage() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center shadow-sm animate-pulse">
-                        <img src="/logo.png" alt="BilboTrans" className="w-7 h-7 object-contain" />
-                    </div>
-                    <p className="text-sm text-slate-500">Cargando parada...</p>
-                </div>
-            </div>
-        );
-    }
+    if (isLoading) return <PageLoading label="Cargando parada" />;
 
     if (error && !stopDetails) {
         return (
