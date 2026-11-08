@@ -59,19 +59,24 @@ class ConfigActivity : Activity() {
             setOnClickListener {
                 val o = find(origin.text.toString())
                 val d = find(dest.text.toString())
-                when {
-                    o == null -> error.text = "Elige el origen de la lista"
-                    d == null -> error.text = "Elige el destino de la lista"
-                    o.code == d.code -> error.text = "El origen y el destino no pueden ser el mismo"
-                    else -> {
-                        Store.saveConfig(this@ConfigActivity, widgetId, WidgetConfig(o.code, o.name, d.code, d.name))
-                        Render.update(this@ConfigActivity, AppWidgetManager.getInstance(this@ConfigActivity), widgetId)
-                        Refresh.schedulePeriodic(this@ConfigActivity)
-                        Refresh.enqueueNow(this@ConfigActivity)
-                        setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
-                        finish()
-                    }
+                if (o == null) {
+                    error.text = "Elige el origen de la lista"
+                    return@setOnClickListener
                 }
+                if (d == null) {
+                    error.text = "Elige el destino de la lista"
+                    return@setOnClickListener
+                }
+                if (o.code == d.code) {
+                    error.text = "El origen y el destino no pueden ser el mismo"
+                    return@setOnClickListener
+                }
+                Store.saveConfig(this@ConfigActivity, widgetId, WidgetConfig(o.code, o.name, d.code, d.name))
+                Render.update(this@ConfigActivity, AppWidgetManager.getInstance(this@ConfigActivity), widgetId)
+                Refresh.schedulePeriodic(this@ConfigActivity)
+                Refresh.enqueueNow(this@ConfigActivity)
+                setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
+                finish()
             }
         }
 

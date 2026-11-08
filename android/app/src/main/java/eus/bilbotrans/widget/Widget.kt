@@ -129,7 +129,7 @@ class RefreshWorker(private val ctx: Context, params: WorkerParameters) : Worker
         val mgr = AppWidgetManager.getInstance(ctx)
         val ids = mgr.getAppWidgetIds(ComponentName(ctx, MetroWidgetProvider::class.java))
         // Un mismo trayecto en varios widgets se pide una sola vez
-        val pairs = ids.mapNotNull { Store.config(ctx, it) }.map { it.from to it.to }.toSet()
+        val pairs = ids.toList().mapNotNull { Store.config(ctx, it) }.map { it.from to it.to }.toSet()
         var failed = false
         for ((from, to) in pairs) {
             try {
