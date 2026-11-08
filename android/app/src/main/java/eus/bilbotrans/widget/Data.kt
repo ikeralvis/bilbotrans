@@ -45,9 +45,12 @@ object MetroApi {
     fun fetch(from: String, to: String): RouteData {
         val conn = URL("https://api.metrobilbao.eus/metro/real-time/$from/$to").openConnection() as HttpURLConnection
         try {
-            conn.connectTimeout = 8000
-            conn.readTimeout = 8000
+            conn.connectTimeout = 6000
+            conn.readTimeout = 6000
+            conn.useCaches = false
             conn.setRequestProperty("Accept", "application/json")
+            // Sin reutilizar conexiones: una conexión «viva» que el móvil ya cerró da «unexpected end of stream»
+            conn.setRequestProperty("Connection", "close")
             if (conn.responseCode != 200) error("HTTP ${conn.responseCode}")
             val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
             val trip = root.getJSONObject("trip")

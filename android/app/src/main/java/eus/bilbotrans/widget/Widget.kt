@@ -112,6 +112,12 @@ object Refresh {
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(PERIODIC, ExistingPeriodicWorkPolicy.KEEP, req)
     }
 
+    /** Un reintento que espera a tener conexión (si ya hay uno pendiente, se conserva). */
+    fun retryWhenOnline(ctx: Context) {
+        val req = androidx.work.OneTimeWorkRequestBuilder<RefreshWorker>().setConstraints(online).build()
+        WorkManager.getInstance(ctx).enqueueUniqueWork("bt-retry", androidx.work.ExistingWorkPolicy.KEEP, req)
+    }
+
     fun cancelPeriodic(ctx: Context) {
         WorkManager.getInstance(ctx).cancelUniqueWork(PERIODIC)
     }
@@ -125,7 +131,27 @@ object Refresh {
 
 /** Pide los trenes de cada trayecto configurado y repinta. Se usa tanto desde WorkManager como al instante (hilo propio). */
 object RefreshCore {
-    fun run(ctx: Context): Boolean {
+    /** Textos cortos para lo que el usuario puede entender; el resto se muestra tal cual. */
+    private fun describe(e: Exception): String = when (e) {
+        is java.net.UnknownHostException, is java.net.ConnectException, is java.net.SocketTimeoutException -> "sin conexión a internet"
+        else -> e.javaClass.simpleName + (e.message?.let { ": $it" } ?: "")
+    }
+
+    private fun fetchWithRetry(from: String, to: String, attempts: Int): RouteData {
+        var last: Exception? = null
+        repeat(attempts) { i ->
+            try {
+                return MetroApi.fetch(from, to)
+            } catch (e: Exception) {
+                last = e
+                if (i < attempts - 1) Thread.sleep(1500L)
+            }
+        }
+        throw last ?: IllegalStateException("sin datos")
+    }
+
+    /** `attempts`: reintentos seguidos (el móvil a veces tarda unos segundos en tener red al despertar el widget). */
+    fun run(ctx: Context, attempts: Int = 2): Boolean {
         val mgr = AppWidgetManager.getInstance(ctx)
         val ids = mgr.getAppWidgetIds(ComponentName(ctx, MetroWidgetProvider::class.java))
         // Un mismo trayecto en varios widgets se pide una sola vez
@@ -133,20 +159,26 @@ object RefreshCore {
         var ok = true
         for ((from, to) in pairs) {
             try {
-                Store.saveRoute(ctx, from, to, MetroApi.fetch(from, to))
+                Store.saveRoute(ctx, from, to, fetchWithRetry(from, to, attempts))
                 Store.saveError(ctx, null)
             } catch (e: Exception) {
                 ok = false
-                Store.saveError(ctx, e.javaClass.simpleName + (e.message?.let { ": $it" } ?: ""))
+                Store.saveError(ctx, describe(e))
             }
         }
         Render.updateAll(ctx)
+        // Sin red ahora mismo: Android avisa a WorkManager en cuanto vuelva y reintenta solo
+        if (!ok) Refresh.retryWhenOnline(ctx)
         return ok
     }
 }
 
 class RefreshWorker(private val ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
-    override fun doWork(): Result = if (RefreshCore.run(ctx)) Result.success() else Result.retry()
+    // Si falla, RefreshCore ya deja encolado el reintento con red: aquí no hace falta devolver retry
+    override fun doWork(): Result {
+        RefreshCore.run(ctx, attempts = 1)
+        return Result.success()
+    }
 }
 
 class MetroWidgetProvider : AppWidgetProvider() {
