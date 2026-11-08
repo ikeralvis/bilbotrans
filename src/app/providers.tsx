@@ -5,6 +5,7 @@ import { LanguageProvider } from '@/context/LanguageContext';
 import { FavoritesProvider } from '@/context/FavoritesContext';
 import { GeolocationProvider } from '@/context/GeolocationContext';
 import { PWAClient } from '@/components/shared/PWAClient';
+import { ResumeRefresh } from '@/components/shared/ResumeRefresh';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <FavoritesProvider>
         <GeolocationProvider>
           <PWAClient />
+          <ResumeRefresh />
           {children}
         </GeolocationProvider>
       </FavoritesProvider>

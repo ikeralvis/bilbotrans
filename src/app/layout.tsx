@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.json',
   // Cada red sustituye este título en su layout: en iOS es el nombre del icono al añadir a la pantalla de inicio
-  appleWebApp: { capable: true, title: 'BilboTrans', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'BilboTrans', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
@@ -48,8 +48,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* iOS standalone (black-translucent): la web pinta bajo la barra de estado. Esta banda sólida evita el borroso/contenido bajo el reloj. */}
-        <div className="bt-statusbar" aria-hidden />
         <Providers>
           {children}
         </Providers>
