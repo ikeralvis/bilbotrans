@@ -112,6 +112,12 @@ object Store {
         }.getOrNull()
     }
 
+    fun saveError(ctx: Context, msg: String?) {
+        prefs(ctx).edit().apply { if (msg == null) remove("last_error") else putString("last_error", msg) }.apply()
+    }
+
+    fun lastError(ctx: Context): String? = prefs(ctx).getString("last_error", null)
+
     fun lastManualRefresh(ctx: Context) = prefs(ctx).getLong("last_manual", 0L)
     fun markManualRefresh(ctx: Context) = prefs(ctx).edit().putLong("last_manual", System.currentTimeMillis()).apply()
 }

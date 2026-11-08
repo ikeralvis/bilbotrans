@@ -11,9 +11,7 @@ import android.os.SystemClock
 import android.widget.RemoteViews
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
@@ -55,8 +53,9 @@ object Render {
         val upcoming = data?.trains?.filter { it.atMs > now - 20_000 }?.take(maxRows).orEmpty()
 
         if (data == null) {
+            val err = Store.lastError(ctx)
             views.setViewVisibility(R.id.empty, android.view.View.VISIBLE)
-            views.setTextViewText(R.id.empty, "Cargando trenes…")
+            views.setTextViewText(R.id.empty, if (err == null) "Cargando trenes…" else "No se pudo cargar ($err). Toca ↻ para reintentar.")
             views.setTextViewText(R.id.updated, "")
         } else if (upcoming.isEmpty()) {
             views.setViewVisibility(R.id.empty, android.view.View.VISIBLE)
@@ -106,7 +105,6 @@ object Render {
 /** Trabajos en segundo plano: cada 15 min (el mínimo de Android) y cuando se pulsa ↻. */
 object Refresh {
     private const val PERIODIC = "bt-periodic"
-    private const val NOW = "bt-now"
     private val online = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
     fun schedulePeriodic(ctx: Context) {
@@ -118,35 +116,46 @@ object Refresh {
         WorkManager.getInstance(ctx).cancelUniqueWork(PERIODIC)
     }
 
+    /** Al instante y sin depender de WorkManager (que puede retrasarse con el ahorro de batería). */
     fun enqueueNow(ctx: Context) {
-        val req = OneTimeWorkRequestBuilder<RefreshWorker>().setConstraints(online).build()
-        WorkManager.getInstance(ctx).enqueueUniqueWork(NOW, ExistingWorkPolicy.KEEP, req)
+        val app = ctx.applicationContext
+        Thread { RefreshCore.run(app) }.start()
     }
 }
 
-class RefreshWorker(private val ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
-    override fun doWork(): Result {
+/** Pide los trenes de cada trayecto configurado y repinta. Se usa tanto desde WorkManager como al instante (hilo propio). */
+object RefreshCore {
+    fun run(ctx: Context): Boolean {
         val mgr = AppWidgetManager.getInstance(ctx)
         val ids = mgr.getAppWidgetIds(ComponentName(ctx, MetroWidgetProvider::class.java))
         // Un mismo trayecto en varios widgets se pide una sola vez
         val pairs = ids.toList().mapNotNull { Store.config(ctx, it) }.map { it.from to it.to }.toSet()
-        var failed = false
+        var ok = true
         for ((from, to) in pairs) {
             try {
                 Store.saveRoute(ctx, from, to, MetroApi.fetch(from, to))
-            } catch (_: Exception) {
-                failed = true
+                Store.saveError(ctx, null)
+            } catch (e: Exception) {
+                ok = false
+                Store.saveError(ctx, e.javaClass.simpleName + (e.message?.let { ": $it" } ?: ""))
             }
         }
         Render.updateAll(ctx)
-        return if (failed) Result.retry() else Result.success()
+        return ok
     }
+}
+
+class RefreshWorker(private val ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
+    override fun doWork(): Result = if (RefreshCore.run(ctx)) Result.success() else Result.retry()
 }
 
 class MetroWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         appWidgetIds.forEach { Render.update(context, appWidgetManager, it) }
-        Refresh.enqueueNow(context)
+        val pending = goAsync()
+        Thread {
+            try { RefreshCore.run(context.applicationContext) } finally { pending.finish() }
+        }.start()
     }
 
     override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: android.os.Bundle) {
@@ -165,7 +174,10 @@ class MetroWidgetProvider : AppWidgetProvider() {
             // Pulsaciones seguidas dentro de 20 s no repiten la petición
             if (System.currentTimeMillis() - Store.lastManualRefresh(context) > 20_000) {
                 Store.markManualRefresh(context)
-                Refresh.enqueueNow(context)
+                val pending = goAsync()
+                Thread {
+                    try { RefreshCore.run(context.applicationContext) } finally { pending.finish() }
+                }.start()
             }
         }
     }
