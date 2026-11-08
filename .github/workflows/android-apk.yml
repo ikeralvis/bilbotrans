@@ -51,7 +51,16 @@ jobs:
           echo "BT_KEYSTORE=$RUNNER_TEMP/bt.keystore" >> "$GITHUB_ENV"
 
       - name: Compilar APK firmado
-        run: gradle -p android assembleRelease --no-daemon --stacktrace
+        run: |
+          set +e
+          gradle -p android assembleRelease --no-daemon --console=plain 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            # El log completo exige iniciar sesión en GitHub: los errores clave se repiten como anotaciones (públicas)
+            grep -E "^e: |error:|What went wrong|Execution failed|Could not|not found|AAPT" -A2 build.log | head -40 | tr '
+' '|' | sed 's/%/%25/g' | while IFS= read -r l; do echo "::error::$l"; done
+          fi
+          exit $code
 
       - name: Renombrar
         run: cp android/app/build/outputs/apk/release/app-release.apk BilboTrans-widget.apk
