@@ -44,7 +44,7 @@ jobs:
           else
             TMP_PASS="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)"
             echo "::add-mask::$TMP_PASS"
-            keytool -genkeypair -keystore "$RUNNER_TEMP/bt.keystore" -storepass "$TMP_PASS" -keypass "$TMP_PASS"               -alias bilbotrans -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=BilboTrans"
+            keytool -genkeypair -keystore "$RUNNER_TEMP/bt.keystore" -storepass "$TMP_PASS" -keypass "$TMP_PASS" -alias bilbotrans -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=BilboTrans"
             echo "BT_STORE_PASS=$TMP_PASS" >> "$GITHUB_ENV"
             echo "BT_KEY_ALIAS=bilbotrans" >> "$GITHUB_ENV"
           fi
@@ -56,9 +56,9 @@ jobs:
           gradle -p android assembleRelease --no-daemon --console=plain 2>&1 | tee build.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
-            # El log completo exige iniciar sesión en GitHub: los errores clave se repiten como anotaciones (públicas)
-            grep -E "^e: |error:|What went wrong|Execution failed|Could not|not found|AAPT" -A2 build.log | head -40 | tr '
-' '|' | sed 's/%/%25/g' | while IFS= read -r l; do echo "::error::$l"; done
+            # El log completo exige iniciar sesión en GitHub: los errores del compilador se repiten como anotaciones (públicas)
+            grep -E "^e: " build.log | head -15 | sed 's#file:///home/runner/work/[^/]*/[^/]*/##' | while IFS= read -r line; do echo "::error::$line"; done
+            grep -E "What went wrong" -A2 build.log | head -6 | while IFS= read -r line; do echo "::error::$line"; done
           fi
           exit $code
 
