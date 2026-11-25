@@ -1,0 +1,50 @@
+{
+  "name": "Bilbobus · BilboTrans",
+  "short_name": "Bilbobus",
+  "description": "Tiempos de espera, líneas y paradas de Bilbobus",
+  "start_url": "/bilbobus",
+  "scope": "/bilbobus",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#c22629",
+  "background_color": "#000000",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-540x720.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": [
+    "transportation",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "¿Qué bus cojo?",
+      "short_name": "Trayecto",
+      "url": "/bilbobus/route"
+    },
+    {
+      "name": "Líneas",
+      "short_name": "Líneas",
+      "url": "/bilbobus/lines"
+    }
+  ],
+  "id": "/bilbobus"
+}

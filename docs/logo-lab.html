@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logo lab · BilboTrans</title>
+<style>
+  :root { color-scheme: light dark; --bg: light-dark(#f4f1ea, #0e0f12); --ink: light-dark(#17181d, #f4f1ea); --ink2: light-dark(#6b6a66, #9a9892); --card: light-dark(#fff, #2a2b33); --ring: light-dark(rgba(0,0,0,.08), rgba(255,255,255,.12)); }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 64px; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 26px; letter-spacing: -.02em; margin: 0 0 4px; }
+  .sub { color: var(--ink2); margin: 0 0 24px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border-radius: 24px; padding: 20px; box-shadow: 0 0 0 1px var(--ring); }
+  .card h2 { font-size: 17px; margin: 0; letter-spacing: -.01em; }
+  .card p { margin: 2px 0 16px; color: var(--ink2); font-size: 14px; }
+  .big { display: flex; gap: 14px; }
+  .big svg { width: 132px; height: 132px; flex: none; }
+  .small { display: flex; align-items: flex-end; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ring); }
+  .small svg { flex: none; }
+  .small span { color: var(--ink2); font-size: 12px; margin-left: auto; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--ink); color: var(--bg); cursor: pointer; margin-top: 18px; }
+  .draw path.line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.4s cubic-bezier(.65,0,.35,1) forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+</style>
+</head>
+<body class="draw">
+<main>
+  <h1>Logo lab · BilboTrans</h1>
+  <p class="sub">Variaciones de la «B» doble con los colores de las tres redes. Cada una sobre baldosa oscura y crema, y reducida a 48 / 32 / 16 px.</p>
+  <div class="grid" id="grid"></div>
+  <button id="replay">Repetir animación de dibujo</button>
+</main>
+<script>
+const O = '#d93e14', L = '#a5ca71', DARK = '#17181d', CREAM = '#f5ede0';
+const B = 'M44 92V26H64A15 15 0 0 1 64 56H44H68A18 18 0 0 1 68 92H44';
+const tile = (c) => `<rect width="120" height="120" rx="27" fill="${c}"/>`;
+
+const R = '#c22629';
+const stroke = (w, c) => `<path class="line" pathLength="1" d="${B}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const ring = (cx, cy, bg) => `<circle cx="${cx}" cy="${cy}" r="9" fill="${bg}"/>` + [O, R, L].map((c, i) => `<circle cx="${cx}" cy="${cy}" r="6" fill="none" stroke="${c}" stroke-width="4.2" stroke-dasharray="12.2 25.5" stroke-dashoffset="${-i * 12.57}" transform="rotate(-90 ${cx} ${cy})"/>`).join('');
+
+const variants = [
+  {
+    name: 'E · Cinta triple',
+    note: 'La B doble con las tres redes dentro: naranja (Metro), rojo (Bilbobus) y verde (Bizkaibus) como una sola línea de plano.',
+    art: (bg) => `<g transform="translate(-5 1)">${stroke(17, O)}${stroke(10, R)}${stroke(3.6, L)}</g>`,
+  },
+  {
+    name: 'F · Doble con parada tricolor',
+    note: 'La B doble de antes (naranja con núcleo claro) y la parada partida en los tres colores de las redes.',
+    art: (bg) => `<g transform="translate(-5 1)">${stroke(15, O)}<path d="${B}" fill="none" stroke="${bg}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/>${ring(44, 92, bg)}</g>`,
+  },
+  {
+    name: 'G · Cinta triple con la ría',
+    note: 'La cinta triple y, además, el pie de la B se escapa en curva como el Nervión hasta la parada.',
+    art: (bg) => {
+      const T = 'M44 92V26H64A15 15 0 0 1 64 56H44H68A18 18 0 0 1 68 92H44C36 92 33 101 22 101';
+      const p = (w, c) => `<path class="line" pathLength="1" d="${T}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      return `<g transform="translate(0 -2)">${p(15, O)}${p(8.5, R)}${p(3, L)}</g>`;
+    },
+  },
+  {
+    name: 'H · Doble naranja y rojo',
+    note: 'Solo dos tonos (naranja fuera, rojo dentro) y la parada verde. La más limpia a 16 px de la familia doble.',
+    art: (bg) => `<g transform="translate(-5 1)">${stroke(16, O)}${stroke(7, R)}<circle cx="44" cy="92" r="7" fill="${L}" stroke="${bg}" stroke-width="3"/></g>`,
+  },
+];
+
+const svg = (v, bg, size) => `<svg viewBox="0 0 120 120" width="${size}" height="${size}" role="img" aria-label="${v.name}">${tile(bg)}${v.art(bg)}</svg>`;
+document.getElementById('grid').innerHTML = variants.map((v) => `
+  <section class="card">
+    <h2>${v.name}</h2><p>${v.note}</p>
+    <div class="big">${svg(v, DARK, 132)}${svg(v, CREAM, 132)}</div>
+    <div class="small">${[48, 32, 16].map((s) => svg(v, DARK, s)).join('')}${[48, 32, 16].map((s) => svg(v, CREAM, s)).join('')}<span>48 · 32 · 16 px</span></div>
+  </section>`).join('');
+document.getElementById('replay').onclick = () => {
+  document.querySelectorAll('path.line').forEach((p) => { p.style.animation = 'none'; void p.getBoundingClientRect(); p.style.animation = ''; });
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+name: Check Metro Alerts
+
+on:
+  schedule:
+    # GitHub Actions (backup): cada 30 minutos de 7-14h España (6-13 UTC)
+    # Para más frecuencia, usar cron-job.org cada 10 min
+    - cron: '0,30 6-13 * * 1-5'
+  workflow_dispatch: # Permite ejecución manual desde GitHub UI
+
+jobs:
+  check-alerts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Log start time
+        run: |
+          echo "🕐 Starting check at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "📍 Spain time: $(TZ='Europe/Madrid' date '+%Y-%m-%d %H:%M:%S')"
+      
+      - name: Check endpoint status first
+        run: |
+          echo "📡 Checking endpoint availability..."
+          status_response=$(curl -s https://bilbotrans.vercel.app/api/metro/check-alerts)
+          echo "Status response: $status_response"
+      
+      - name: Send alert check request
+        run: |
+          echo "🚇 Sending POST request to check Metro alerts..."
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            https://bilbotrans.vercel.app/api/metro/check-alerts)
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "📊 HTTP Status: $http_code"
+          echo "📋 Response body:"
+          echo "$body" | jq . 2>/dev/null || echo "$body"
+          
+          if [ "$http_code" = "200" ]; then
+            echo "✅ Alert check completed successfully"
+          elif [ "$http_code" = "401" ]; then
+            echo "❌ Authentication failed - check CRON_SECRET_TOKEN secret"
+            exit 1
+          else
+            echo "⚠️ Unexpected status code: $http_code"
+            exit 1
+          fi
+      
+      - name: Log completion
+        run: |
+          echo "🏁 Completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"

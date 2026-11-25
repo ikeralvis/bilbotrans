@@ -1,0 +1,50 @@
+{
+  "name": "Metro Bilbao · BilboTrans",
+  "short_name": "Metro",
+  "description": "Próximos trenes de Metro Bilbao en tiempo real",
+  "start_url": "/metro",
+  "scope": "/metro",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1b1b1f",
+  "background_color": "#1b1b1f",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-540x720.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": [
+    "transportation",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "Líneas",
+      "short_name": "Líneas",
+      "url": "/metro/lines"
+    },
+    {
+      "name": "Mapa en vivo",
+      "short_name": "Mapa",
+      "url": "/metro/map"
+    }
+  ],
+  "id": "/metro"
+}
