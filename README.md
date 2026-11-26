@@ -104,9 +104,11 @@ Abre [http://localhost:3000](http://localhost:3000)
 - [Metro Bilbao GTFS-RT](https://ctb-gtfs-rt.s3.eu-south-2.amazonaws.com/metro-bilbao-trip-updates.pb)
 - [OpenStreetMap](https://www.openstreetmap.org/)
 
-## 📝 Licencia
+## Licencia y Atribuciones
 
-MIT - Libre para usar y modificar
+* **Código fuente:** Distribuido bajo la licencia [GNU AGPLv3](LICENSE). Si utilizas o modificas este código, debes mantener la atribución al autor original y liberar el código resultante bajo la misma licencia.
+* **Diseño, interfaz y recursos gráficos:** © 2026 Iker Alvis. Todos los derechos reservados. No está permitida la copia o replicación de la identidad visual sin autorización expresa.
+* **Datos de transporte:** Los datos en tiempo real y horarios provienen de Open Data Euskadi, Consorcio de Transportes de Bizkaia (Bizkaibus), Bilbobus y Metro Bilbao bajo licencia CC BY 4.0.
 
 ---
 
