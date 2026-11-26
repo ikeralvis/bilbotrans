@@ -382,6 +382,12 @@ select {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
+/* Al pulsar una red, su distintivo se hunde y la flecha avanza: respuesta táctil antes de navegar */
+.bt-stop:active .bt-mark { transform: scale(0.9); transition-duration: 90ms; }
+.bt-stop:active .bt-stop-chevron { transform: translateX(4px); transition-duration: 90ms; }
+@media (prefers-reduced-motion: reduce) {
+  .bt-stop:active .bt-mark, .bt-stop:active .bt-stop-chevron { transform: none; }
+}
 
 /* Botón de tema: el icono nuevo entra girando un poco */
 .bt-theme-icon {

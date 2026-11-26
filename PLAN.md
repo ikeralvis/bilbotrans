@@ -127,3 +127,14 @@ El logo provisional («B» con tres paradas) no representa a Bilbao. Dirección 
 - Euskera e inglés (hoy todo en castellano).
 - Compartir un trayecto por enlace (`/metro/route?origin=…&dest=…` ya funciona; falta el botón).
 - Accesibilidad: contraste del naranja sobre fondo oscuro, `prefers-reduced-motion` en las flechas (ya respetado), tamaños táctiles ≥ 44 px.
+
+### Home multired y docs (hecho el 2026-11-26)
+- **Buscador único** en la home (`src/lib/search/unified.ts`, `/api/search`, `UnifiedSearch.tsx`): paradas de todas las redes agrupadas por lugar ("Moyua" → Metro + Bilbobus + Bizkaibus) y líneas por código. Corre en servidor para no meter los catálogos de bus en el bundle.
+- **Cerca de ti** multired (`/api/search/nearby`, `NearbyAll.tsx`): ubicación solo al pulsar, redondeada a ~110 m.
+- Saludo según la hora, entrada animada de la cabecera, respuesta táctil al pulsar una red.
+- **Mapa de recorrido** plegable en las líneas de Bilbobus y Bizkaibus (`LineMapCard`, Leaflet cargado al abrir).
+- Metro: el tren destacado se releva con animación cuando sale; grupos por sentido respetan `prefers-reduced-motion`.
+- Docs: `README.md` nuevo, `docs/DATA.md` (fuentes, métodos, API propia) y `docs/ACCESSIBILITY.md`.
+
+### Siguiente: planificador origen → destino multired
+Hoy hay buscadores de trayecto por red (Metro, Bilbobus, Bizkaibus directos). Un planificador entre redes necesita un grafo de transbordos a pie (paradas a < 300 m) y horarios de todas las redes: la opción realista es un motor RAPTOR sobre los GTFS ya precompilados, en servidor, empezando por Metro + Bilbobus.

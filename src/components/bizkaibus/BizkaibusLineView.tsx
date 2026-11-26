@@ -13,6 +13,7 @@ import { SegmentedTabs } from '@/components/metro/ui';
 import { SeasonSchedule } from './ScheduleView';
 import { AlertsBanner, BusChip, titleCase } from './ui';
 import { NetworkBadge } from '@/components/shared/brand';
+import { LineMapCard, type MapStop } from '@/components/shared/LineMapCard';
 
 const stripCode = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, '');
 
@@ -76,6 +77,13 @@ function StopsList({ line, dir }: { line: LineDetail; dir: DirectionId }) {
             }),
         [stops, line.code],
     );
+    const mapStops = useMemo<MapStop[]>(
+        () => stops.flatMap((st) => {
+            const info = getStop(st.code);
+            return info ? [{ code: st.code, name: titleCase(stripCode(st.name)), lat: info.lat, lon: info.lon, href: `/bizkaibus/stop/${st.code}` }] : [];
+        }),
+        [stops],
+    );
     const municipalities = useMemo(() => new Set(rows.map((r) => r.municipality).filter(Boolean)).size, [rows]);
     const filtering = q.trim() !== '';
     const visible = useMemo(() => {
@@ -96,6 +104,7 @@ function StopsList({ line, dir }: { line: LineDetail; dir: DirectionId }) {
 
     return (
         <div className="space-y-3">
+            <LineMapCard stops={mapStops} color="#22533d" label={`${mapStops.length} paradas · ${mapStops[0]?.name ?? ''} → ${mapStops[mapStops.length - 1]?.name ?? ''}`} />
             <div className="flex items-center justify-between gap-3 px-1">
                 <p className="text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--ink-2)' }}>
                     {stops.length} paradas{municipalities > 1 ? ` · ${municipalities} municipios` : ''}

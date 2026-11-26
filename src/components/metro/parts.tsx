@@ -145,9 +145,10 @@ export function DirectionSection({ group, index = 0, empty }: { group: Direction
     const [expanded, setExpanded] = useState(false);
     const visible = expanded ? rest : rest.slice(0, VISIBLE_PER_PLATFORM - 1);
     const hidden = rest.length - visible.length;
+    const reduce = useReducedMotion();
     return (
         <motion.section
-            initial={{ opacity: 0, y: 12 }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...SPRING, delay: index * 0.05 }}
             className="bt-card p-2"
@@ -160,7 +161,18 @@ export function DirectionSection({ group, index = 0, empty }: { group: Direction
             </header>
             {first ? (
                 <div className="flex flex-col">
-                    <TrainRow train={first} featured />
+                    {/* Cuando sale el primer tren, el siguiente sube a destacado: el viejo se va hacia arriba y el nuevo entra desde abajo. */}
+                    <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.div
+                            key={`${first.line}-${first.destination}-${first.time}`}
+                            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.98, transition: { duration: 0.16 } }}
+                            transition={SPRING}
+                        >
+                            <TrainRow train={first} featured />
+                        </motion.div>
+                    </AnimatePresence>
                     <AnimatePresence initial={false}>
                         {visible.map((t, i) => (
                             <motion.div

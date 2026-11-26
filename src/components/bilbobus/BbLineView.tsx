@@ -13,6 +13,7 @@ import { LiveBadge, Minutes, SPRING, StateCard } from '@/components/metro/parts'
 import { SegmentedTabs } from '@/components/metro/ui';
 import { BbChip, RefreshNote, titleCase } from './BbUi';
 import { NetworkBadge } from '@/components/shared/brand';
+import { LineMapCard, type MapStop } from '@/components/shared/LineMapCard';
 
 const officialUrl = (code: string) => `https://www.bilbao.eus/cs/Satellite/bilbobus/es/linea?codLinea=${encodeURIComponent(code)}`;
 
@@ -105,6 +106,14 @@ export function BbLineView({ line, detail }: { line: BbLine; detail: BbLineDetai
             .map((c) => ({ code: c, name: getBbStop(c)?.name ?? c }));
     }, [data, detail]);
 
+    const mapStops = useMemo<MapStop[]>(
+        () => rows.flatMap((r) => {
+            const st = getBbStop(r.code);
+            return st ? [{ code: r.code, name: titleCase(r.name), lat: st.lat, lon: st.lon, href: `/bilbobus/stop/${r.code}` }] : [];
+        }),
+        [rows],
+    );
+
     const active = data ? Object.keys(data.minutes).length > 0 : null;
     const nearest = data
         ? Object.values(data.minutes).filter((m): m is number => m !== null).sort((a, b) => a - b)[0]
@@ -157,6 +166,8 @@ export function BbLineView({ line, detail }: { line: BbLine; detail: BbLineDetai
                                 })}
                             />
                         )}
+
+                        <LineMapCard stops={mapStops} color={line.color ?? '#c22629'} label={`${mapStops.length} paradas · ${titleCase(mapStops[0]?.name ?? '')} → ${titleCase(mapStops[mapStops.length - 1]?.name ?? '')}`} />
 
                         {error && !data && (
                             <div className="flex items-center gap-2.5 rounded-2xl px-4 py-3 text-sm" style={{ background: 'color-mix(in srgb, var(--warn) 16%, var(--surface))', color: 'var(--ink)' }} role="status">

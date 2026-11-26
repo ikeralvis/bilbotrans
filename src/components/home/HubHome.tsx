@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import Link, { useLinkStatus } from 'next/link';
 import { motion, useReducedMotion } from 'motion/react';
 import { ChevronRight, Heart } from 'lucide-react';
@@ -12,6 +12,8 @@ import { BilboMark } from '@/components/shared/BilboLogo';
 import { NetworkMark } from '@/components/shared/brand';
 import { LegalFooter } from '@/components/shared/Legal';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
+import { UnifiedSearch } from './UnifiedSearch';
+import { NearbyAll } from './NearbyAll';
 
 const MAX_METRO_LIVE = 4;
 /** Alto fijo de cada parada del esquema: la vía va del centro de la primera al centro de la última. */
@@ -109,9 +111,19 @@ function FavoriteRow({ fav, network }: { fav: Favorite; network: Network }) {
     );
 }
 
+/** Saludo según la hora de Bilbao. En el servidor (y al hidratar) se usa el genérico, así no hay desajuste. */
+function greetingNow(): string {
+    const h = Number(new Intl.DateTimeFormat('es-ES', { hour: 'numeric', hour12: false, timeZone: 'Europe/Madrid' }).format(new Date()));
+    return h >= 6 && h < 13 ? 'Buenos días. ¿A dónde vas?' : h >= 13 && h < 21 ? 'Buenas tardes. ¿A dónde vas?' : 'Buenas noches. ¿Vuelves a casa?';
+}
+const noopSubscribe = () => () => {};
+const useGreeting = () => useSyncExternalStore(noopSubscribe, greetingNow, () => '¿A dónde vas hoy?');
+
 /** Home de BilboTrans: las redes como paradas de una línea y, debajo, tus favoritos de todas. */
 export default function HubHome() {
     const { favorites } = useFavorites();
+    const greeting = useGreeting();
+    const reduce = useReducedMotion();
 
     const { metroStations, others } = useMemo(() => {
         const seen = new Set<string>();
@@ -127,18 +139,25 @@ export default function HubHome() {
     return (
         <div className="min-h-dvh pb-[max(6rem,env(safe-area-inset-bottom))]" style={{ background: 'var(--bg)' }}>
             <div className="mx-auto max-w-2xl px-4 pt-[max(1.5rem,env(safe-area-inset-top))]">
-                <header className="flex items-start justify-between gap-3 px-1">
+                <motion.header
+                    className="flex items-start justify-between gap-3 px-1"
+                    initial={reduce ? false : { opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.32, ease: EASE_OUT }}
+                >
                     <div className="min-w-0">
                         <h1 className="flex items-center gap-3 text-[36px] font-extrabold leading-none tracking-[-0.04em]" style={{ color: 'var(--ink)' }}>
                             <BilboMark size={40} />
                             <span>BilboTrans</span>
                         </h1>
-                        <p className="mt-2 text-[15px] leading-5" style={{ color: 'var(--ink-2)' }}>¿En qué te mueves hoy?</p>
+                        <p className="mt-2 text-[15px] leading-5" style={{ color: 'var(--ink-2)' }}>{greeting}</p>
                     </div>
                     <ThemeToggle />
-                </header>
+                </motion.header>
 
                 <main className="mt-6 space-y-8">
+                    <UnifiedSearch />
+
                     <NetworkLine />
 
                     <section aria-labelledby="fav-title" className="space-y-3">
@@ -163,6 +182,8 @@ export default function HubHome() {
                             </>
                         )}
                     </section>
+
+                    <NearbyAll />
 
                     <LegalFooter />
                 </main>

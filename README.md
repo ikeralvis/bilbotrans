@@ -1,134 +1,82 @@
-# 🚌 BilboTrans - Horarios Metro & Bilbobus
+# BilboTrans
 
-Una aplicación moderna, minimalista y rápida para consultar **horarios en tiempo real** de:
-- 🟠 **Metro Bilbao** (L1, L2)
-- 🔴 **Bilbobus**
+**Transporte de Bizkaia en directo, pensado para el móvil.** Metro Bilbao, Bilbobus, Bizkaibus y Euskotren (con la L3 y los tranvías de Bilbao y Vitoria-Gasteiz) en una sola PWA: próximos trenes y buses, horarios, líneas, paradas y mapa.
 
-## ✨ Características
+> Proyecto independiente y no oficial, sin relación con los operadores.
 
-- ✅ **Datos en tiempo real** desde GTFS-RT
-- ✅ **Sin duplicados** - Una parada = Un resultado
-- ✅ **Paradas favoritas** con almacenamiento local
-- ✅ **Paradas cercanas** con geolocalización
-- ✅ **Mapa interactivo** (Leaflet)
-- ✅ **PWA** - Instala en home screen
-- ✅ **Diseño minimalista** estilo Apple
-- ✅ **Rápido** - Caché inteligente
+## Qué hace
 
-## 🚀 Quick Start
+- **Un buscador para todo.** Escribe «Moyua» y aparecen juntas la estación de Metro y las paradas de Bilbobus y Bizkaibus de alrededor; escribe «A3247» o «56» y aparece la línea.
+- **Cerca de ti.** Las paradas más próximas de todas las redes en una lista, ordenadas por distancia (la ubicación solo se pide al pulsar).
+- **Metro Bilbao.** Trenes en directo por sentido (nunca mezclados), cuenta atrás al segundo, retraso real frente al horario, transbordo L1↔L2 en etapas, trayectos favoritos y sugeridos, horario por franjas, avisos, diagrama de líneas y mapa con trenes estimados.
+- **Bilbobus.** Próximo bus por línea en cada parada, minutos en todas las paradas de una línea, horas de paso programadas, recorrido en el mapa y «¿qué bus cojo?».
+- **Bizkaibus.** Próximos buses con distancia a la parada, líneas por municipio, horario de cartel estructurado, avisos, recorrido en el mapa y buscador de trayecto directo.
+- **Euskotren.** Tren, L3, tranvías y funicular con tiempo real GTFS-RT y caída al horario programado.
+- **Favoritos sin cuenta**, tema claro y oscuro, una PWA instalable por red y funcionamiento fluido con la red lenta.
 
-### Windows
+## Stack
+
+[Next.js 16](https://nextjs.org) (App Router) · React 19 · TypeScript · Tailwind CSS 4 · [Motion](https://motion.dev) · SWR · Leaflet · desplegado en Vercel (`fra1`).
+
+## Empezar
+
+Requisitos: Node 20+ y [pnpm](https://pnpm.io).
+
 ```bash
-setup-and-run.bat
+pnpm install
+pnpm dev          # http://localhost:3000
 ```
 
-### macOS / Linux
-```bash
-bash setup-and-run.sh
+| Comando | Qué hace |
+|---|---|
+| `pnpm dev` | Servidor de desarrollo |
+| `pnpm build` | Build de producción (antes regenera el catálogo y el GTFS de Metro) |
+| `pnpm lint` | ESLint |
+| `pnpm test` | Tests de la lógica de datos (sentidos, retrasos, transbordos, horarios) |
+| `pnpm sync:metro` · `sync:gtfs` | Regenera el catálogo y el GTFS de Metro |
+| `pnpm sync:bilbobus` · `sync:bizkaibus` · `sync:euskotren` | Regenera los catálogos de bus y Euskotren |
+
+### Variables de entorno
+
+Ninguna es obligatoria para desarrollar las pantallas de transporte.
+
+| Variable | Para qué |
+|---|---|
+| `NEXT_PUBLIC_ENABLED_TRANSPORTS` | Redes visibles, separadas por comas (por defecto `metro,bizkaibus,bilbobus,euskotren,tranvia-bilbao,tranvia-vitoria`) |
+| `NEXT_PUBLIC_BASE_URL` | URL pública, para metadatos y widgets |
+| `DATABASE_URL` | Neon Postgres (solo la ruta heredada `/api/stops/search` y las alertas) |
+| `NEXT_PUBLIC_ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY`, `CRON_SECRET_TOKEN` | Notificaciones push de incidencias de Metro |
+
+## Estructura
+
+```
+src/
+  app/              rutas (una carpeta por red) y API propia en app/api/*
+  components/       pantallas y piezas por red (metro/, bilbobus/, bizkaibus/, euskotren/) + shared/ y home/
+  lib/              clientes de cada operador, hooks SWR y lógica pura con tests
+  data/             catálogos precompilados (no se editan a mano)
+scripts/            sincronización de catálogos y generación de iconos
+.github/workflows/  refresco semanal de datos y APK de Android
 ```
 
-### Manual
-```bash
-npm install leaflet react-leaflet @types/leaflet
-npm run dev
-```
+Reglas del código: los componentes no llaman a los operadores, usan los hooks de `src/lib/*/hooks.ts` contra `/api/*`; el sentido de los trenes de Metro se calcula solo con `groupByDirection`.
 
-Abre [http://localhost:3000](http://localhost:3000)
+## Documentación
 
-## 📱 Cómo usar
+| Documento | Contenido |
+|---|---|
+| [`docs/DATA.md`](docs/DATA.md) | Fuentes, catálogos, métodos (sentidos, retraso, simulación) y rutas de la API propia |
+| [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md) | Compromisos de accesibilidad, cómo se comprueba y problemas conocidos |
+| [`API.md`](API.md) | Investigación detallada de cada fuente de datos, con fechas de prueba |
+| [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | Tokens, tipografía, componentes y movimiento |
+| [`PLAN.md`](PLAN.md) | Estado del proyecto y siguientes fases |
 
-1. **Busca una parada** - Escribe el nombre (ej: "Abando")
-2. **Selecciona resultado** - Sin duplicados, una sola entrada
-3. **Ves los horarios REALES** - Divididos por andén (Metro)
-4. **Marca como favorita** ❤️ - Aparece en la home
-5. **Mira en el mapa** 🗺️ - Ubicación exacta
+## Contribuir
 
-## 📊 Cambios Recientes
+Los issues y pull requests son bienvenidos. Para cambios de interfaz, sigue `DESIGN_SYSTEM.md` y la checklist de `.claude/skills/bilbotrans-design/SKILL.md` (estados de carga, vacío y error; claro y oscuro; 375 px; `prefers-reduced-motion`). Pasa `pnpm lint` y `pnpm test` antes de abrir el PR.
 
-### ✅ Datos REALES (Enero 2026)
-- Integración con GTFS-RT del Metro Bilbao
-- Horarios en tiempo real, no mock data
-- Destinos correctos (Plentzia, Basauri, Kabiezes, Etxebarri)
-- Separación correcta de andenes (1 y 2)
-
-### ✅ Sin Duplicados
-- Búsqueda sin repetir paradas
-- Deduplicación automática
-
-### ✨ Nuevo: Mapa
-- Visualiza todas las paradas
-- Haz click para ver horarios
-- Tu ubicación en tiempo real
-
-## 📚 Documentación
-
-- **[CHANGELOG.md](./CHANGELOG.md)** - Qué cambió
-- **[REAL_DATA_GUIDE.md](./REAL_DATA_GUIDE.md)** - Cómo funciona ahora
-- **[IMPROVEMENTS.md](./IMPROVEMENTS.md)** - Roadmap completo
-- **[QUICK_START.md](./QUICK_START.md)** - Guía rápida
-
-## 🛠️ Tecnología
-
-- **Next.js 16** - Framework React moderno
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Estilos minimalistas
-- **Leaflet** - Mapas interactivos
-- **GTFS-RT** - Datos en tiempo real
-- **PWA** - Funciona offline
-
-## 📍 Paradas Disponibles
-
-### Línea 1 (L1)
-- Plentzia ↔ Etxebarri
-
-### Línea 2 (L2)
-- Kabiezes ↔ Basauri
-
-[Ver mapa completo en la app]
-
-## 🐛 Problemas Conocidos
-
-- **Bilbobus**: Todavía usa mock data (en desarrollo)
-- **Mapeo incompleto**: Hay paradas que faltan nombres (se van descubriendo)
-
-## 🚧 En desarrollo
-
-- [ ] API real de Bilbobus
-- [ ] Mapa en la página principal
-- [ ] Tema oscuro
-- [ ] Multiidioma
-- [ ] Versión nativa (iOS/Android)
-
-## 🔗 URLs Útiles
-
-- [Metro Bilbao GTFS-RT](https://ctb-gtfs-rt.s3.eu-south-2.amazonaws.com/metro-bilbao-trip-updates.pb)
-- [OpenStreetMap](https://www.openstreetmap.org/)
-
-## Licencia y Atribuciones
+## Licencia y atribuciones
 
 * **Código fuente:** Distribuido bajo la licencia [GNU AGPLv3](LICENSE). Si utilizas o modificas este código, debes mantener la atribución al autor original y liberar el código resultante bajo la misma licencia.
 * **Diseño, interfaz y recursos gráficos:** © 2026 Iker Alvis. Todos los derechos reservados. No está permitida la copia o replicación de la identidad visual sin autorización expresa.
-* **Datos de transporte:** Los datos en tiempo real y horarios provienen de Open Data Euskadi, Consorcio de Transportes de Bizkaia (Bizkaibus), Bilbobus y Metro Bilbao bajo licencia CC BY 4.0.
-
----
-
-**Última actualización**: Enero 2026
-
-🎉 ¡Ahora con datos REALES!
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+* **Datos de transporte:** Los datos en tiempo real y horarios provienen de Open Data Euskadi, Consorcio de Transportes de Bizkaia (Bizkaibus), Bilbobus y Metro Bilbao bajo licencia CC BY 4.0. Detalle por fuente en [`docs/DATA.md`](docs/DATA.md#licencias-y-atribución).
